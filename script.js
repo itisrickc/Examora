@@ -1,38 +1,20 @@
 /* =========================================================
-   EXAM OMR
-   FINAL JAVASCRIPT — v1.0
+   EXAM OMR — FINAL script.js
    ========================================================= */
 
+const SUPABASE_URL = "https://veanswqdgwffiespeokc.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_IuXKh35oKJiu3_a3HKurkw_YSURgtdT";
 
-/* =========================================================
-   SUPABASE CONFIGURATION
-   ========================================================= */
+const supabaseClient = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_PUBLISHABLE_KEY
+);
 
-const SUPABASE_URL =
-  "https://veanswqdgwffiespeokc.supabase.co";
+const STORAGE_BUCKET = "question-papers";
 
-const SUPABASE_PUBLISHABLE_KEY =
-  "sb_publishable_IuXKh35oKJiu3_a3HKurkw_YSURgtdT";
+const OPTION_LABELS = ["A", "B", "C", "D"];
 
-const supabaseClient =
-  window.supabase.createClient(
-    SUPABASE_URL,
-    SUPABASE_PUBLISHABLE_KEY
-  );
-
-
-/* =========================================================
-   CONSTANTS
-   ========================================================= */
-
-const STORAGE_BUCKET =
-  "question-papers";
-
-const OPTION_LABELS =
-  ["A", "B", "C", "D"];
-
-const PDFJS_VERSION =
-  "4.10.38";
+const PDFJS_VERSION = "4.10.38";
 
 const PDFJS_CDN =
   `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.min.mjs`;
@@ -61,6 +43,8 @@ let testCreatedCode = "";
 
 let candidateName = "";
 
+let pdfJsModule = null;
+
 let currentPdfDocument = null;
 
 let currentPdfPage = 1;
@@ -69,7 +53,9 @@ let currentPdfScale = 1;
 
 let pdfRendering = false;
 
-let pdfJsModule = null;
+let pendingPdfRender = null;
+
+let pdfRenderToken = 0;
 
 
 /* =========================================================
@@ -81,39 +67,38 @@ const $ = (id) =>
 
 
 function show(element) {
+
   if (element) {
     element.classList.remove("hidden");
   }
+
 }
 
 
 function hide(element) {
+
   if (element) {
     element.classList.add("hidden");
   }
+
 }
 
 
 function setLoading(
-  showLoading,
+  active,
   text = "Please wait..."
 ) {
-  const overlay =
-    $("loadingOverlay");
 
-  const loadingText =
-    $("loadingText");
-
-  if (loadingText) {
-    loadingText.textContent =
-      text;
+  if ($("loadingText")) {
+    $("loadingText").textContent = text;
   }
 
-  if (showLoading) {
-    show(overlay);
+  if (active) {
+    show($("loadingOverlay"));
   } else {
-    hide(overlay);
+    hide($("loadingOverlay"));
   }
+
 }
 
 
@@ -122,6 +107,7 @@ function showStatus(
   message,
   type = ""
 ) {
+
   if (!element) {
     return;
   }
@@ -137,55 +123,76 @@ function showStatus(
   }
 
   show(element);
+
 }
 
 
 function hideStatus(element) {
-  if (!element) {
-    return;
-  }
 
   hide(element);
+
 }
 
 
 function showScreen(screenId) {
-  const screens =
-    document.querySelectorAll(
-      ".screen"
-    );
 
-  screens.forEach(
-    (screen) => {
+  document
+    .querySelectorAll(".screen")
+    .forEach((screen) => {
       hide(screen);
-    }
-  );
+    });
 
-  const target =
-    $(screenId);
-
-  if (target) {
-    show(target);
-  }
+  show($(screenId));
 
   window.scrollTo({
     top: 0,
     behavior: "smooth"
   });
+
 }
 
 
-/* =========================================================
-   SAFE TEXT
-   ========================================================= */
-
 function escapeHtml(value) {
+
   return String(value ?? "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
+
+}
+
+
+function formatNumber(value) {
+
+  return Number(value || 0)
+    .toFixed(2)
+    .replace(/\.00$/, "");
+
+}
+
+
+/* =========================================================
+   OPTION HELPERS
+   ========================================================= */
+
+function getOptionLabels(count) {
+
+  return OPTION_LABELS.slice(
+    0,
+    Number(count) === 2 ? 2 : 4
+  );
+
+}
+
+
+function normalizeOptionCount(value) {
+
+  return Number(value) === 2
+    ? 2
+    : 4;
+
 }
 
 
@@ -194,36 +201,41 @@ function escapeHtml(value) {
    ========================================================= */
 
 function generateTestCode() {
+
   const characters =
     "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
-  let code = "";
+  return Array
+    .from(
+      { length: 6 },
+      () =>
+        characters[
+          Math.floor(
+            Math.random() *
+            characters.length
+          )
+        ]
+    )
+    .join("");
 
-  for (let i = 0; i < 6; i++) {
-    const randomIndex =
-      Math.floor(
-        Math.random() *
-        characters.length
-      );
-
-    code +=
-      characters[randomIndex];
-  }
-
-  return code;
 }
 
 
 async function generateUniqueTestCode() {
+
   for (
     let attempt = 0;
-    attempt < 10;
+    attempt < 15;
     attempt++
   ) {
+
     const code =
       generateTestCode();
 
-    const { data, error } =
+    const {
+      data,
+      error
+    } =
       await supabaseClient
         .from("tests")
         .select("id")
@@ -234,43 +246,16 @@ async function generateUniqueTestCode() {
       throw error;
     }
 
-    if (
-      !data ||
-      data.length === 0
-    ) {
+    if (!data || data.length === 0) {
       return code;
     }
+
   }
 
   throw new Error(
     "Could not generate a unique test code."
   );
-}
 
-
-/* =========================================================
-   OPTION HELPERS
-   ========================================================= */
-
-function getOptionLabels(
-  optionCount
-) {
-  return OPTION_LABELS.slice(
-    0,
-    optionCount
-  );
-}
-
-
-function normalizeOptionCount(
-  value
-) {
-  const number =
-    Number(value);
-
-  return number === 2
-    ? 2
-    : 4;
 }
 
 
@@ -279,6 +264,7 @@ function normalizeOptionCount(
    ========================================================= */
 
 function renderOptionSettings() {
+
   const container =
     $("optionSettings");
 
@@ -297,7 +283,7 @@ function renderOptionSettings() {
       )
     );
 
-  const defaultOptionCount =
+  const defaultCount =
     normalizeOptionCount(
       $("defaultOptions")?.value
     );
@@ -305,13 +291,15 @@ function renderOptionSettings() {
   currentQuestionCount =
     count;
 
-  container.innerHTML = "";
+  container.innerHTML =
+    "";
 
   for (
     let i = 1;
     i <= count;
     i++
   ) {
+
     const wrapper =
       document.createElement(
         "div"
@@ -320,72 +308,55 @@ function renderOptionSettings() {
     wrapper.className =
       "option-setting";
 
-    const number =
-      document.createElement(
-        "div"
-      );
+    wrapper.innerHTML = `
+      <div class="option-setting-number">
+        ${i}
+      </div>
 
-    number.className =
-      "option-setting-number";
+      <select
+        class="question-option-count"
+        data-question="${i}"
+      >
+        <option
+          value="4"
+          ${defaultCount === 4 ? "selected" : ""}
+        >
+          4 Options
+        </option>
 
-    number.textContent =
-      i;
-
-    const select =
-      document.createElement(
-        "select"
-      );
-
-    select.className =
-      "question-option-count";
-
-    select.dataset.question =
-      String(i);
-
-    select.innerHTML = `
-      <option value="4">
-        4 Options
-      </option>
-
-      <option value="2">
-        2 Options
-      </option>
+        <option
+          value="2"
+          ${defaultCount === 2 ? "selected" : ""}
+        >
+          2 Options
+        </option>
+      </select>
     `;
-
-    select.value =
-      String(
-        defaultOptionCount
-      );
-
-    wrapper.appendChild(
-      number
-    );
-
-    wrapper.appendChild(
-      select
-    );
 
     container.appendChild(
       wrapper
     );
+
   }
+
 }
 
 
 function collectQuestionOptions() {
-  const selects =
-    document.querySelectorAll(
-      ".question-option-count"
+
+  return Array
+    .from(
+      document.querySelectorAll(
+        ".question-option-count"
+      )
+    )
+    .map(
+      (select) =>
+        normalizeOptionCount(
+          select.value
+        )
     );
 
-  return Array.from(
-    selects
-  ).map(
-    (select) =>
-      normalizeOptionCount(
-        select.value
-      )
-  );
 }
 
 
@@ -396,8 +367,9 @@ function collectQuestionOptions() {
 $("pdfFile")?.addEventListener(
   "change",
   (event) => {
+
     const file =
-      event.target.files[0];
+      event.target.files?.[0];
 
     const status =
       $("pdfStatus");
@@ -408,11 +380,10 @@ $("pdfFile")?.addEventListener(
     const preview =
       $("pdfPreview");
 
-    if (previewBox) {
-      hide(previewBox);
-    }
+    hide(previewBox);
 
     if (!file) {
+
       if (status) {
         status.textContent =
           "";
@@ -425,6 +396,7 @@ $("pdfFile")?.addEventListener(
       file.type !==
       "application/pdf"
     ) {
+
       event.target.value =
         "";
 
@@ -436,27 +408,28 @@ $("pdfFile")?.addEventListener(
       return;
     }
 
-    const localUrl =
+    const url =
       URL.createObjectURL(
         file
       );
 
     if (preview) {
       preview.src =
-        localUrl;
+        url;
     }
 
-    if (previewBox) {
-      show(previewBox);
-    }
+    show(previewBox);
 
     if (status) {
+
       status.textContent =
         `${file.name} selected.`;
 
       status.style.color =
         "#16a34a";
+
     }
+
   }
 );
 
@@ -469,17 +442,20 @@ async function uploadQuestionPaper(
   file,
   code
 ) {
+
   if (!file) {
+
     throw new Error(
       "Please select a question paper PDF."
     );
+
   }
 
   const fileName =
     `${code}-${Date.now()}.pdf`;
 
-  const { error:
-    uploadError
+  const {
+    error
   } =
     await supabaseClient
       .storage
@@ -490,18 +466,22 @@ async function uploadQuestionPaper(
         {
           cacheControl:
             "3600",
+
           upsert:
             false,
+
           contentType:
             "application/pdf"
         }
       );
 
-  if (uploadError) {
-    throw uploadError;
+  if (error) {
+    throw error;
   }
 
-  const { data } =
+  const {
+    data
+  } =
     supabaseClient
       .storage
       .from(STORAGE_BUCKET)
@@ -513,12 +493,15 @@ async function uploadQuestionPaper(
     !data ||
     !data.publicUrl
   ) {
+
     throw new Error(
       "Could not create PDF URL."
     );
+
   }
 
   return data.publicUrl;
+
 }
 
 
@@ -527,6 +510,7 @@ async function uploadQuestionPaper(
    ========================================================= */
 
 function renderAnswerKey() {
+
   const container =
     $("answerKeyGrid");
 
@@ -547,6 +531,7 @@ function renderAnswerKey() {
     i < currentQuestionCount;
     i++
   ) {
+
     const item =
       document.createElement(
         "div"
@@ -555,81 +540,74 @@ function renderAnswerKey() {
     item.className =
       "answer-key-item";
 
-    const title =
-      document.createElement(
-        "strong"
-      );
-
-    title.textContent =
-      `Question ${i + 1}`;
-
-    const select =
-      document.createElement(
-        "select"
-      );
-
-    select.className =
-      "answer-key-select";
-
-    select.dataset.question =
-      String(i);
-
-    const optionCount =
-      currentOptions[i] || 4;
-
     const labels =
       getOptionLabels(
-        optionCount
+        currentOptions[i] || 4
       );
 
-    select.innerHTML =
-      `<option value="">
-        Select
-      </option>` +
-      labels
-        .map(
-          (label) =>
-            `<option value="${label}">
-              ${label}
-            </option>`
-        )
-        .join("");
+    item.innerHTML = `
+      <strong>
+        Question ${i + 1}
+      </strong>
+
+      <select
+        class="answer-key-select"
+        data-question="${i}"
+      >
+
+        <option value="">
+          Select
+        </option>
+
+        ${labels
+          .map(
+            (label) =>
+              `<option value="${label}">
+                ${label}
+              </option>`
+          )
+          .join("")}
+
+      </select>
+    `;
+
+    const select =
+      item.querySelector(
+        "select"
+      );
 
     select.addEventListener(
       "change",
       () => {
+
         currentAnswerKey[i] =
           select.value;
+
       }
-    );
-
-    item.appendChild(
-      title
-    );
-
-    item.appendChild(
-      select
     );
 
     container.appendChild(
       item
     );
+
   }
+
 }
 
 
 function collectAnswerKey() {
-  const selects =
-    document.querySelectorAll(
-      ".answer-key-select"
+
+  return Array
+    .from(
+      document.querySelectorAll(
+        ".answer-key-select"
+      )
+    )
+    .map(
+      (select) =>
+        select.value
     );
 
-  return Array.from(
-    selects
-  ).map(
-    (select) =>
-      select.value
-  );
 }
 
 
@@ -642,7 +620,8 @@ $("generateBtn")?.addEventListener(
   async () => {
 
     const name =
-      $("testName")?.value
+      $("testName")
+        ?.value
         .trim();
 
     const pdfFile =
@@ -656,6 +635,7 @@ $("generateBtn")?.addEventListener(
       );
 
     if (!name) {
+
       alert(
         "Please enter a test name."
       );
@@ -664,6 +644,7 @@ $("generateBtn")?.addEventListener(
     }
 
     if (!pdfFile) {
+
       alert(
         "Please select the question paper PDF."
       );
@@ -678,6 +659,7 @@ $("generateBtn")?.addEventListener(
       questionCount < 1 ||
       questionCount > 300
     ) {
+
       alert(
         "Question count must be between 1 and 300."
       );
@@ -693,12 +675,14 @@ $("generateBtn")?.addEventListener(
 
     if (
       currentOptions.length !==
-      currentQuestionCount
+      questionCount
     ) {
+
       renderOptionSettings();
 
       currentOptions =
         collectQuestionOptions();
+
     }
 
     setLoading(
@@ -725,14 +709,20 @@ $("generateBtn")?.addEventListener(
       renderAnswerKey();
 
       currentTest = {
+
         name,
+
         code,
+
         pdf_url:
           currentPdfUrl,
+
         question_count:
           currentQuestionCount,
+
         options:
           currentOptions
+
       };
 
       showScreen(
@@ -755,7 +745,9 @@ $("generateBtn")?.addEventListener(
       setLoading(
         false
       );
+
     }
+
   }
 );
 
@@ -769,6 +761,7 @@ $("saveTestBtn")?.addEventListener(
   async () => {
 
     if (!currentTest) {
+
       alert(
         "No test is ready to save."
       );
@@ -779,13 +772,13 @@ $("saveTestBtn")?.addEventListener(
     const answerKey =
       collectAnswerKey();
 
-    const missingAnswers =
+    if (
       answerKey.some(
         (answer) =>
           !answer
-      );
+      )
+    ) {
 
-    if (missingAnswers) {
       alert(
         "Please select the correct answer for every question."
       );
@@ -810,6 +803,7 @@ $("saveTestBtn")?.addEventListener(
         correctMark
       )
     ) {
+
       alert(
         "Please enter a valid correct mark."
       );
@@ -822,6 +816,7 @@ $("saveTestBtn")?.addEventListener(
         wrongMark
       )
     ) {
+
       alert(
         "Please enter a valid wrong mark."
       );
@@ -837,6 +832,7 @@ $("saveTestBtn")?.addEventListener(
     try {
 
       const payload = {
+
         name:
           currentTest.name,
 
@@ -860,6 +856,7 @@ $("saveTestBtn")?.addEventListener(
 
         code:
           currentTest.code
+
       };
 
       const {
@@ -868,7 +865,9 @@ $("saveTestBtn")?.addEventListener(
       } =
         await supabaseClient
           .from("tests")
-          .insert(payload)
+          .insert(
+            payload
+          )
           .select()
           .single();
 
@@ -880,9 +879,11 @@ $("saveTestBtn")?.addEventListener(
         data.code;
 
       if ($("createdCode")) {
+
         $("createdCode")
           .textContent =
           testCreatedCode;
+
       }
 
       showScreen(
@@ -905,7 +906,9 @@ $("saveTestBtn")?.addEventListener(
       setLoading(
         false
       );
+
     }
+
   }
 );
 
@@ -917,15 +920,18 @@ $("saveTestBtn")?.addEventListener(
 async function loadTestByCode(
   code
 ) {
+
   const cleanCode =
     code
       .trim()
       .toUpperCase();
 
   if (!cleanCode) {
+
     throw new Error(
       "Please enter a test code."
     );
+
   }
 
   const {
@@ -949,12 +955,15 @@ async function loadTestByCode(
     !data ||
     data.length === 0
   ) {
+
     throw new Error(
       "Test not found. Please check the code."
     );
+
   }
 
   return data[0];
+
 }
 
 
@@ -971,16 +980,12 @@ function ensureCandidateNameInput() {
   const examScreen =
     $("examScreen");
 
-  if (!examScreen) {
-    return;
-  }
-
-  const existingHeader =
-    examScreen.querySelector(
+  const header =
+    examScreen?.querySelector(
       ".exam-header"
     );
 
-  if (!existingHeader) {
+  if (!header) {
     return;
   }
 
@@ -993,11 +998,13 @@ function ensureCandidateNameInput() {
     "candidate-bar card";
 
   wrapper.innerHTML = `
+
     <div class="candidate-bar-icon">
       👤
     </div>
 
     <div class="candidate-bar-info">
+
       <label class="form-label">
         Candidate Name
       </label>
@@ -1005,6 +1012,7 @@ function ensureCandidateNameInput() {
       <p>
         Enter your name before starting the exam.
       </p>
+
     </div>
 
     <input
@@ -1014,14 +1022,14 @@ function ensureCandidateNameInput() {
       autocomplete="name"
       placeholder="Enter your full name"
     >
+
   `;
 
-  existingHeader
-    .parentNode
-    .insertBefore(
-      wrapper,
-      existingHeader.nextSibling
-    );
+  header.parentNode.insertBefore(
+    wrapper,
+    header.nextSibling
+  );
+
 }
 
 
@@ -1064,24 +1072,21 @@ $("joinBtn")?.addEventListener(
 
     try {
 
-      const test =
+      currentTest =
         await loadTestByCode(
           code
         );
 
-      currentTest =
-        test;
-
       currentQuestionCount =
         Number(
-          test.question_count
+          currentTest.question_count
         );
 
       currentOptions =
         Array.isArray(
-          test.options
+          currentTest.options
         )
-          ? test.options.map(
+          ? currentTest.options.map(
               normalizeOptionCount
             )
           : new Array(
@@ -1090,9 +1095,9 @@ $("joinBtn")?.addEventListener(
 
       currentAnswerKey =
         Array.isArray(
-          test.answer_key
+          currentTest.answer_key
         )
-          ? test.answer_key
+          ? currentTest.answer_key
           : [];
 
       selectedAnswers =
@@ -1104,32 +1109,36 @@ $("joinBtn")?.addEventListener(
         "";
 
       if ($("examName")) {
+
         $("examName")
           .textContent =
-          test.name;
+          currentTest.name;
+
       }
 
       if ($("examInfo")) {
+
         $("examInfo")
           .textContent =
-          `${currentQuestionCount} Questions • Code: ${test.code}`;
+          `${currentQuestionCount} Questions • Code: ${currentTest.code}`;
+
       }
 
       currentPdfUrl =
-        test.pdf_url;
+        currentTest.pdf_url;
 
       ensureCandidateNameInput();
 
-      const candidateInput =
-        $("candidateName");
+      if ($("candidateName")) {
 
-      if (candidateInput) {
-        candidateInput.value =
+        $("candidateName")
+          .value =
           "";
+
       }
 
       await initializePdfViewer(
-        test.pdf_url
+        currentPdfUrl
       );
 
       renderExam();
@@ -1155,7 +1164,9 @@ $("joinBtn")?.addEventListener(
       setLoading(
         false
       );
+
     }
+
   }
 );
 
@@ -1210,18 +1221,13 @@ function renderExam() {
       number
     );
 
-    const optionCount =
-      currentOptions[i] || 4;
-
     const labels =
       getOptionLabels(
-        optionCount
+        currentOptions[i] || 4
       );
 
     for (
-      let j = 0;
-      j < labels.length;
-      j++
+      const labelValue of labels
     ) {
 
       const label =
@@ -1244,10 +1250,7 @@ function renderExam() {
         `question-${i}`;
 
       input.value =
-        labels[j];
-
-      input.dataset.question =
-        String(i);
+        labelValue;
 
       input.addEventListener(
         "change",
@@ -1262,11 +1265,8 @@ function renderExam() {
           );
 
           updateProgress();
-        }
-      );
 
-      label.appendChild(
-        input
+        }
       );
 
       const text =
@@ -1275,72 +1275,62 @@ function renderExam() {
         );
 
       text.textContent =
-        labels[j];
+        labelValue;
 
-      label.appendChild(
+      label.append(
+        input,
         text
       );
 
       row.appendChild(
         label
       );
+
     }
 
     container.appendChild(
       row
     );
+
   }
 
   updateProgress();
+
 }
 
-
-/* =========================================================
-   SELECTED OPTION
-   ========================================================= */
 
 function updateSelectedOption(
   questionIndex,
   selectedValue
 ) {
 
-  const inputs =
-    document.querySelectorAll(
+  document
+    .querySelectorAll(
       `input[name="question-${questionIndex}"]`
+    )
+    .forEach(
+      (input) => {
+
+        const label =
+          input.closest(
+            ".answer-option"
+          );
+
+        if (label) {
+
+          label.classList.toggle(
+            "selected",
+            input.value ===
+              selectedValue
+          );
+
+        }
+
+      }
     );
 
-  inputs.forEach(
-    (input) => {
-
-      const label =
-        input.closest(
-          ".answer-option"
-        );
-
-      if (!label) {
-        return;
-      }
-
-      if (
-        input.value ===
-        selectedValue
-      ) {
-        label.classList.add(
-          "selected"
-        );
-      } else {
-        label.classList.remove(
-          "selected"
-        );
-      }
-    }
-  );
 }
 
-
-/* =========================================================
-   PROGRESS
-   ========================================================= */
 
 function updateProgress() {
 
@@ -1352,42 +1342,42 @@ function updateProgress() {
   const total =
     currentQuestionCount;
 
-  const progress =
-    $("questionProgress");
+  if ($("questionProgress")) {
 
-  if (progress) {
-    progress.textContent =
+    $("questionProgress")
+      .textContent =
       `${answered} / ${total}`;
+
   }
 
-  const progressFill =
+  const fill =
     document.querySelector(
       ".progress-fill"
     );
 
-  if (progressFill) {
+  if (fill) {
 
-    const percentage =
-      total > 0
-        ? (
-            answered /
-            total
-          ) * 100
-        : 0;
+    fill.style.width =
+      `${
+        total
+          ? (answered / total) * 100
+          : 0
+      }%`;
 
-    progressFill.style.width =
-      `${percentage}%`;
   }
 
-  const progressStrong =
+  const strong =
     document.querySelector(
       ".omr-progress strong"
     );
 
-  if (progressStrong) {
-    progressStrong.textContent =
+  if (strong) {
+
+    strong.textContent =
       `${answered}/${total}`;
+
   }
+
 }
 
 
@@ -1399,13 +1389,14 @@ $("resetExamBtn")?.addEventListener(
   "click",
   () => {
 
-    const confirmed =
-      confirm(
+    if (
+      !confirm(
         "Delete all selected answers?"
-      );
+      )
+    ) {
 
-    if (!confirmed) {
       return;
+
     }
 
     selectedAnswers =
@@ -1413,17 +1404,18 @@ $("resetExamBtn")?.addEventListener(
         currentQuestionCount
       ).fill("");
 
-    const inputs =
-      document.querySelectorAll(
+    document
+      .querySelectorAll(
         ".answer-option input"
-      );
+      )
+      .forEach(
+        (input) => {
 
-    inputs.forEach(
-      (input) => {
-        input.checked =
-          false;
-      }
-    );
+          input.checked =
+            false;
+
+        }
+      );
 
     document
       .querySelectorAll(
@@ -1431,123 +1423,20 @@ $("resetExamBtn")?.addEventListener(
       )
       .forEach(
         (label) => {
+
           label.classList.remove(
             "selected"
           );
+
         }
       );
 
-    const resultBox =
-      $("resultBox");
-
-    if (resultBox) {
-      resultBox.innerHTML =
-        "";
-
-      hide(resultBox);
-    }
+    hide(
+      $("resultBox")
+    );
 
     updateProgress();
 
-    const grid =
-      $("examGrid");
-
-    if (grid) {
-      grid.scrollTop = 0;
-    }
-  }
-);
-
-
-/* =========================================================
-   SUBMIT EXAM
-   ========================================================= */
-
-$("submitExamBtn")?.addEventListener(
-  "click",
-  async () => {
-
-    if (!currentTest) {
-      return;
-    }
-
-    const input =
-      $("candidateName");
-
-    candidateName =
-      input?.value
-        ?.trim() || "";
-
-    if (!candidateName) {
-
-      alert(
-        "Please enter your name before submitting the exam."
-      );
-
-      input?.focus();
-
-      return;
-    }
-
-    const unanswered =
-      selectedAnswers.filter(
-        (answer) => !answer
-      ).length;
-
-    if (unanswered > 0) {
-
-      const proceed =
-        confirm(
-          `${unanswered} question(s) are unanswered.\n\nSubmit anyway?`
-        );
-
-      if (!proceed) {
-        return;
-      }
-    }
-
-    setLoading(
-      true,
-      "Checking your answers..."
-    );
-
-    try {
-
-      const result =
-        calculateResult();
-
-      await saveExamResult(
-        result
-      );
-
-      renderResult(
-        result
-      );
-
-    } catch (error) {
-
-      console.error(
-        error
-      );
-
-      alert(
-        "Your result was calculated, but could not be saved.\n\n" +
-        error.message
-      );
-
-      const result =
-        calculateResult();
-
-      renderResult(
-        result
-      );
-
-    } finally {
-
-      setLoading(
-        false
-      );
-    }
   }
 );
 
@@ -1560,26 +1449,29 @@ function calculateResult() {
 
   const answerKey =
     Array.isArray(
-      currentTest.answer_key
+      currentTest?.answer_key
     )
       ? currentTest.answer_key
       : [];
 
   const correctMark =
     Number(
-      currentTest.correct_mark
+      currentTest?.correct_mark
     ) || 0;
 
   const wrongMark =
     Number(
-      currentTest.wrong_mark
+      currentTest?.wrong_mark
     ) || 0;
 
-  let correct = 0;
+  let correct =
+    0;
 
-  let wrong = 0;
+  let wrong =
+    0;
 
-  let unanswered = 0;
+  let unanswered =
+    0;
 
   for (
     let i = 0;
@@ -1590,9 +1482,6 @@ function calculateResult() {
     const selected =
       selectedAnswers[i];
 
-    const correctAnswer =
-      answerKey[i];
-
     if (!selected) {
 
       unanswered++;
@@ -1602,7 +1491,7 @@ function calculateResult() {
 
     if (
       selected ===
-      correctAnswer
+      answerKey[i]
     ) {
 
       correct++;
@@ -1610,7 +1499,9 @@ function calculateResult() {
     } else {
 
       wrong++;
+
     }
+
   }
 
   const score =
@@ -1634,75 +1525,78 @@ function calculateResult() {
       ? (
           score /
           totalMarks
-        ) * 100
+        ) *
+        100
       : 0;
 
   return {
-    candidateName:
-      candidateName,
+
+    candidateName,
 
     testCode:
       currentTest.code,
 
-    testName:
-      currentTest.name,
-
     correct,
+
     wrong,
+
     unanswered,
 
     score,
+
     totalMarks,
 
-    percentage
+    percentage,
+
+    answers:
+      selectedAnswers.slice()
+
   };
+
 }
 
 
 /* =========================================================
    SAVE RESULT
+   =========================================================
+
+   Matches the result table:
+
+   test_code
+   candidate_name
+   answers
+   correct_count
+   wrong_count
+   unanswered_count
+   score
+   total_marks
+   percentage
+   submitted_at
+
    ========================================================= */
 
 async function saveExamResult(
   result
 ) {
 
-  /*
-   IMPORTANT:
-   This uses an "exam_results" table.
-
-   Expected columns:
-
-   id
-   test_code
-   test_name
-   candidate_name
-   correct
-   wrong
-   unanswered
-   score
-   total_marks
-   percentage
-   created_at
-  */
-
   const payload = {
+
     test_code:
       result.testCode,
-
-    test_name:
-      result.testName,
 
     candidate_name:
       result.candidateName,
 
-    correct:
+    answers:
+      result.answers,
+
+    correct_count:
       result.correct,
 
-    wrong:
+    wrong_count:
       result.wrong,
 
-    unanswered:
+    unanswered_count:
       result.unanswered,
 
     score:
@@ -1712,16 +1606,18 @@ async function saveExamResult(
       result.totalMarks,
 
     percentage:
-      result.percentage
+      result.percentage,
+
+    submitted_at:
+      new Date().toISOString()
+
   };
 
   const {
     error
   } =
     await supabaseClient
-      .from(
-        "exam_results"
-      )
+      .from("exam_results")
       .insert(
         payload
       );
@@ -1729,6 +1625,7 @@ async function saveExamResult(
   if (error) {
     throw error;
   }
+
 }
 
 
@@ -1740,14 +1637,15 @@ function renderResult(
   result
 ) {
 
-  const resultBox =
+  const box =
     $("resultBox");
 
-  if (!resultBox) {
+  if (!box) {
     return;
   }
 
-  resultBox.innerHTML = `
+  box.innerHTML = `
+
     <div class="result-title">
       Result
     </div>
@@ -1758,38 +1656,58 @@ function renderResult(
       )}
       •
       ${escapeHtml(
-        result.testName
+        currentTest.name
       )}
     </p>
 
     <div class="result-stats">
 
       <div class="result-stat">
-        <span>Correct</span>
+
+        <span>
+          Correct
+        </span>
+
         <strong>
           ${result.correct}
         </strong>
+
       </div>
 
       <div class="result-stat">
-        <span>Wrong</span>
+
+        <span>
+          Wrong
+        </span>
+
         <strong>
           ${result.wrong}
         </strong>
+
       </div>
 
       <div class="result-stat">
-        <span>Unanswered</span>
+
+        <span>
+          Unanswered
+        </span>
+
         <strong>
           ${result.unanswered}
         </strong>
+
       </div>
 
       <div class="result-stat">
-        <span>Percentage</span>
+
+        <span>
+          Percentage
+        </span>
+
         <strong>
           ${result.percentage.toFixed(2)}%
         </strong>
+
       </div>
 
     </div>
@@ -1811,81 +1729,87 @@ function renderResult(
       </strong>
 
     </div>
+
   `;
 
-  show(resultBox);
+  show(box);
 
-  resultBox.scrollIntoView({
+  box.scrollIntoView({
     behavior:
       "smooth",
 
     block:
       "nearest"
   });
+
 }
 
 
 /* =========================================================
-   NUMBER FORMAT
+   SUBMIT EXAM
    ========================================================= */
 
-function formatNumber(
-  number
-) {
-
-  return Number(
-    number
-  )
-    .toFixed(2)
-    .replace(
-      /\.00$/,
-      ""
-    );
-}
-
-
-/* =========================================================
-   COPY TEST CODE
-   ========================================================= */
-
-$("copyCodeBtn")?.addEventListener(
+$("submitExamBtn")?.addEventListener(
   "click",
   async () => {
 
-    const code =
-      $("createdCode")
-        ?.textContent
-        ?.trim();
-
-    if (!code) {
+    if (!currentTest) {
       return;
     }
 
-    try {
+    const input =
+      $("candidateName");
 
-      await navigator.clipboard.writeText(
-        code
+    candidateName =
+      input?.value
+        ?.trim() ||
+      "";
+
+    if (!candidateName) {
+
+      alert(
+        "Please enter your name before submitting the exam."
       );
 
-      const button =
-        $("copyCodeBtn");
+      input?.focus();
 
-      if (button) {
+      return;
+    }
 
-        const original =
-          button.textContent;
+    const unanswered =
+      selectedAnswers.filter(
+        (answer) =>
+          !answer
+      ).length;
 
-        button.textContent =
-          "Copied ✓";
+    if (
+      unanswered > 0
+    ) {
 
-        setTimeout(
-          () => {
-            button.textContent =
-              original;
-          },
-          1600
+      const proceed =
+        confirm(
+          `${unanswered} question(s) are unanswered.\n\nSubmit anyway?`
         );
+
+      if (!proceed) {
+        return;
       }
+
+    }
+
+    setLoading(
+      true,
+      "Checking your answers..."
+    );
+
+    const result =
+      calculateResult();
+
+    try {
+
+      await saveExamResult(
+        result
+      );
 
     } catch (error) {
 
@@ -1894,9 +1818,20 @@ $("copyCodeBtn")?.addEventListener(
       );
 
       alert(
-        `Test Code: ${code}`
+        "Your result was calculated, but could not be saved.\n\n" +
+        error.message
       );
+
     }
+
+    renderResult(
+      result
+    );
+
+    setLoading(
+      false
+    );
+
   }
 );
 
@@ -1918,7 +1853,9 @@ async function loadPdfJs() {
         PDFJS_CDN
       );
 
-    pdfJsModule.GlobalWorkerOptions.workerSrc =
+    pdfJsModule
+      .GlobalWorkerOptions
+      .workerSrc =
       PDFJS_WORKER_CDN;
 
     return pdfJsModule;
@@ -1933,20 +1870,20 @@ async function loadPdfJs() {
     throw new Error(
       "Could not load the PDF viewer."
     );
+
   }
+
 }
 
 
 /* =========================================================
-   PDF VIEWER SETUP
+   PDF VIEWER CONTAINER
    ========================================================= */
 
 function getPdfViewerContainer() {
 
   const existing =
-    document.querySelector(
-      "#pdfCanvasContainer"
-    );
+    $("pdfCanvasContainer");
 
   if (existing) {
     return existing;
@@ -1968,6 +1905,7 @@ function getPdfViewerContainer() {
     "pdf-viewer";
 
   wrapper.innerHTML = `
+
     <div class="pdf-toolbar">
 
       <div class="pdf-toolbar-group">
@@ -1998,6 +1936,7 @@ function getPdfViewerContainer() {
         </button>
 
       </div>
+
 
       <div class="pdf-toolbar-group">
 
@@ -2030,6 +1969,7 @@ function getPdfViewerContainer() {
 
     </div>
 
+
     <div
       class="pdf-canvas-container"
       id="pdfCanvasContainer"
@@ -2048,6 +1988,7 @@ function getPdfViewerContainer() {
 
     </div>
 
+
     <div class="pdf-viewer-footer">
 
       <span>
@@ -2064,6 +2005,7 @@ function getPdfViewerContainer() {
       </a>
 
     </div>
+
   `;
 
   iframe.style.display =
@@ -2076,9 +2018,10 @@ function getPdfViewerContainer() {
 
   attachPdfControls();
 
-  return document.querySelector(
-    "#pdfCanvasContainer"
+  return $(
+    "pdfCanvasContainer"
   );
+
 }
 
 
@@ -2093,9 +2036,12 @@ function attachPdfControls() {
     () => {
 
       if (
+        !currentPdfDocument ||
         currentPdfPage <= 1
       ) {
+
         return;
+
       }
 
       currentPdfPage--;
@@ -2103,6 +2049,7 @@ function attachPdfControls() {
       renderPdfPage(
         currentPdfPage
       );
+
     }
   );
 
@@ -2116,7 +2063,9 @@ function attachPdfControls() {
         currentPdfPage >=
           currentPdfDocument.numPages
       ) {
+
         return;
+
       }
 
       currentPdfPage++;
@@ -2124,6 +2073,7 @@ function attachPdfControls() {
       renderPdfPage(
         currentPdfPage
       );
+
     }
   );
 
@@ -2134,9 +2084,15 @@ function attachPdfControls() {
 
       currentPdfScale =
         Math.max(
-          0.6,
-          currentPdfScale -
-            0.1
+          0.5,
+          Math.round(
+            (
+              currentPdfScale -
+              0.1
+            ) *
+            100
+          ) /
+            100
         );
 
       updatePdfZoomText();
@@ -2144,6 +2100,7 @@ function attachPdfControls() {
       renderPdfPage(
         currentPdfPage
       );
+
     }
   );
 
@@ -2154,9 +2111,15 @@ function attachPdfControls() {
 
       currentPdfScale =
         Math.min(
-          2.5,
-          currentPdfScale +
-            0.1
+          3,
+          Math.round(
+            (
+              currentPdfScale +
+              0.1
+            ) *
+            100
+          ) /
+            100
         );
 
       updatePdfZoomText();
@@ -2164,13 +2127,74 @@ function attachPdfControls() {
       renderPdfPage(
         currentPdfPage
       );
+
     }
   );
+
 }
 
 
 /* =========================================================
-   PDF VIEWER
+   INITIAL PDF SCALE
+   ========================================================= */
+
+async function getInitialPdfScale() {
+
+  const container =
+    $("pdfCanvasContainer");
+
+  if (
+    !container ||
+    !currentPdfDocument
+  ) {
+
+    return 1;
+
+  }
+
+  try {
+
+    const page =
+      await currentPdfDocument
+        .getPage(1);
+
+    const viewport =
+      page.getViewport({
+        scale: 1
+      });
+
+    const availableWidth =
+      Math.max(
+        280,
+        container.clientWidth -
+          36
+      );
+
+    return Math.max(
+      0.5,
+      Math.min(
+        1.5,
+        availableWidth /
+          viewport.width
+      )
+    );
+
+  } catch (error) {
+
+    console.warn(
+      "Could not calculate initial PDF scale:",
+      error
+    );
+
+    return 1;
+
+  }
+
+}
+
+
+/* =========================================================
+   INITIALIZE PDF VIEWER
    ========================================================= */
 
 async function initializePdfViewer(
@@ -2180,12 +2204,35 @@ async function initializePdfViewer(
   currentPdfUrl =
     url;
 
+  currentPdfDocument =
+    null;
+
+  pdfRendering =
+    false;
+
+  pendingPdfRender =
+    null;
+
+  pdfRenderToken++;
+
   const container =
     getPdfViewerContainer();
 
   if (!container) {
     return;
   }
+
+  /*
+    IMPORTANT FOR MOBILE / ANDROID:
+    The canvas itself can become larger than the
+    viewer when zoomed.
+  */
+
+  container.style.overflow =
+    "auto";
+
+  container.style.webkitOverflowScrolling =
+    "touch";
 
   const loading =
     $("pdfLoading");
@@ -2194,15 +2241,19 @@ async function initializePdfViewer(
     $("pdfCanvas");
 
   if (loading) {
+
+    loading.innerHTML =
+      "Loading question paper...";
+
     show(loading);
 
-    loading.textContent =
-      "Loading question paper...";
   }
 
   if (canvas) {
+
     canvas.style.display =
       "none";
+
   }
 
   try {
@@ -2210,18 +2261,35 @@ async function initializePdfViewer(
     const pdfjsLib =
       await loadPdfJs();
 
+    const token =
+      pdfRenderToken;
+
+    const documentProxy =
+      await pdfjsLib
+        .getDocument({
+          url,
+          withCredentials:
+            false
+        })
+        .promise;
+
+    if (
+      token !==
+      pdfRenderToken
+    ) {
+
+      return;
+
+    }
+
     currentPdfDocument =
-      await pdfjsLib.getDocument({
-        url,
-        withCredentials:
-          false
-      }).promise;
+      documentProxy;
 
     currentPdfPage =
       1;
 
     currentPdfScale =
-      getInitialPdfScale();
+      await getInitialPdfScale();
 
     updatePdfZoomText();
 
@@ -2229,12 +2297,14 @@ async function initializePdfViewer(
       $("pdfOpenFallback");
 
     if (fallback) {
+
       fallback.href =
         url;
+
     }
 
     await renderPdfPage(
-      currentPdfPage
+      1
     );
 
   } catch (error) {
@@ -2255,65 +2325,79 @@ async function initializePdfViewer(
           Use "Open PDF" to view it.
         </span>
       `;
+
+      show(loading);
+
     }
 
     const iframe =
       $("examPdf");
 
     if (iframe) {
+
       iframe.style.display =
         "block";
 
       iframe.src =
         url;
+
     }
 
   }
+
 }
 
 
 /* =========================================================
-   INITIAL PDF SCALE
-   ========================================================= */
+   RENDER PDF PAGE
+   =========================================================
 
-function getInitialPdfScale() {
+   THIS IS THE IMPORTANT FIX.
 
-  const container =
-    $("pdfCanvasContainer");
+   The old code automatically fitted every viewport
+   back to the available container width.
 
-  if (!container) {
-    return 1;
-  }
+   Therefore:
 
-  const width =
-    container.clientWidth;
+   100% → click + → 110%
+   → code immediately reduced it back to fit width.
 
-  if (width <= 500) {
-    return 0.75;
-  }
+   So zoom appeared not to work.
 
-  if (width <= 800) {
-    return 0.9;
-  }
+   This version DOES NOT do that.
 
-  return 1;
-}
-
-
-/* =========================================================
-   PDF RENDER
    ========================================================= */
 
 async function renderPdfPage(
   pageNumber
 ) {
 
-  if (
-    !currentPdfDocument ||
-    pdfRendering
-  ) {
+  if (!currentPdfDocument) {
     return;
   }
+
+
+  /*
+    If a render is already running,
+    remember the newest request instead
+    of simply ignoring the click.
+  */
+
+  if (pdfRendering) {
+
+    pendingPdfRender = {
+
+      pageNumber,
+
+      scale:
+        currentPdfScale
+
+    };
+
+    return;
+
+  }
+
 
   const canvas =
     $("pdfCanvas");
@@ -2325,49 +2409,66 @@ async function renderPdfPage(
     !canvas ||
     !container
   ) {
+
     return;
+
   }
+
 
   pdfRendering =
     true;
 
+  const documentAtStart =
+    currentPdfDocument;
+
+  const tokenAtStart =
+    pdfRenderToken;
+
+  const targetPage =
+    Math.max(
+      1,
+      Math.min(
+        pageNumber,
+        documentAtStart.numPages
+      )
+    );
+
+  const targetScale =
+    currentPdfScale;
+
+
   try {
 
     const page =
-      await currentPdfDocument
+      await documentAtStart
         .getPage(
-          pageNumber
+          targetPage
         );
 
-    let viewport =
-      page.getViewport({
-        scale:
-          currentPdfScale
-      });
-
-    const availableWidth =
-      Math.max(
-        250,
-        container.clientWidth -
-          36
-      );
-
     if (
-      viewport.width >
-      availableWidth
+      tokenAtStart !==
+        pdfRenderToken ||
+      documentAtStart !==
+        currentPdfDocument
     ) {
 
-      const fitScale =
-        availableWidth /
-        viewport.width;
+      return;
 
-      viewport =
-        page.getViewport({
-          scale:
-            currentPdfScale *
-            fitScale
-        });
     }
+
+
+    /*
+      DO NOT FIT TO CONTAINER.
+
+      This is what makes zoom actually work.
+    */
+
+    const viewport =
+      page.getViewport({
+        scale:
+          targetScale
+      });
+
 
     const deviceScale =
       Math.min(
@@ -2376,17 +2477,25 @@ async function renderPdfPage(
         2
       );
 
+
     canvas.width =
-      Math.floor(
-        viewport.width *
-        deviceScale
+      Math.max(
+        1,
+        Math.floor(
+          viewport.width *
+            deviceScale
+        )
       );
 
     canvas.height =
-      Math.floor(
-        viewport.height *
-        deviceScale
+      Math.max(
+        1,
+        Math.floor(
+          viewport.height *
+            deviceScale
+        )
       );
+
 
     canvas.style.width =
       `${viewport.width}px`;
@@ -2394,10 +2503,20 @@ async function renderPdfPage(
     canvas.style.height =
       `${viewport.height}px`;
 
+
     const context =
       canvas.getContext(
         "2d"
       );
+
+    if (!context) {
+
+      throw new Error(
+        "Could not create PDF canvas context."
+      );
+
+    }
+
 
     context.setTransform(
       deviceScale,
@@ -2408,32 +2527,66 @@ async function renderPdfPage(
       0
     );
 
+
+    context.clearRect(
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
+
+
     await page.render({
+
       canvasContext:
         context,
 
       viewport
+
     }).promise;
+
+
+    if (
+      tokenAtStart !==
+        pdfRenderToken ||
+      documentAtStart !==
+        currentPdfDocument
+    ) {
+
+      return;
+
+    }
+
+
+    currentPdfPage =
+      targetPage;
+
+    currentPdfScale =
+      targetScale;
+
 
     canvas.style.display =
       "block";
 
-    const loading =
-      $("pdfLoading");
 
-    if (loading) {
-      hide(loading);
+    hide(
+      $("pdfLoading")
+    );
+
+
+    if ($("pdfPageInfo")) {
+
+      $("pdfPageInfo")
+        .textContent =
+        `${currentPdfPage} / ${currentPdfDocument.numPages}`;
+
     }
 
-    const pageInfo =
-      $("pdfPageInfo");
-
-    if (pageInfo) {
-      pageInfo.textContent =
-        `${pageNumber} / ${currentPdfDocument.numPages}`;
-    }
 
     updatePdfButtons();
+
+    updatePdfZoomText();
+
 
   } catch (error) {
 
@@ -2446,7 +2599,48 @@ async function renderPdfPage(
 
     pdfRendering =
       false;
+
+
+    /*
+      If user clicked next/zoom while
+      rendering was happening, render
+      the latest requested state now.
+    */
+
+    if (
+      pendingPdfRender &&
+      documentAtStart ===
+        currentPdfDocument
+    ) {
+
+      const pending =
+        pendingPdfRender;
+
+      pendingPdfRender =
+        null;
+
+      currentPdfScale =
+        pending.scale;
+
+      requestAnimationFrame(
+        () => {
+
+          renderPdfPage(
+            pending.pageNumber
+          );
+
+        }
+      );
+
+    } else {
+
+      pendingPdfRender =
+        null;
+
+    }
+
   }
+
 }
 
 
@@ -2462,19 +2656,31 @@ function updatePdfButtons() {
   const next =
     $("pdfNextBtn");
 
+
   if (prev) {
+
     prev.disabled =
+      !currentPdfDocument ||
       currentPdfPage <= 1;
+
   }
 
+
   if (next) {
+
     next.disabled =
       !currentPdfDocument ||
       currentPdfPage >=
         currentPdfDocument.numPages;
+
   }
+
 }
 
+
+/* =========================================================
+   PDF ZOOM TEXT
+   ========================================================= */
 
 function updatePdfZoomText() {
 
@@ -2486,9 +2692,11 @@ function updatePdfZoomText() {
     zoom.textContent =
       `${Math.round(
         currentPdfScale *
-        100
+          100
       )}%`;
+
   }
+
 }
 
 
@@ -2496,7 +2704,8 @@ function updatePdfZoomText() {
    PDF RESIZE
    ========================================================= */
 
-let pdfResizeTimer = null;
+let pdfResizeTimer =
+  null;
 
 window.addEventListener(
   "resize",
@@ -2511,16 +2720,163 @@ window.addEventListener(
         () => {
 
           if (
-            currentPdfDocument
+            currentPdfDocument &&
+            !pdfRendering
           ) {
+
             renderPdfPage(
               currentPdfPage
             );
+
           }
 
         },
-        180
+        250
       );
+
+  }
+);
+
+
+/* =========================================================
+   COPY TEST CODE
+   ========================================================= */
+
+$("copyCodeBtn")?.addEventListener(
+  "click",
+  async () => {
+
+    const code =
+      $("createdCode")
+        ?.textContent
+        .trim();
+
+    if (!code) {
+      return;
+    }
+
+    try {
+
+      await navigator.clipboard.writeText(
+        code
+      );
+
+      const button =
+        $("copyCodeBtn");
+
+      const oldText =
+        button?.textContent;
+
+      if (button) {
+
+        button.textContent =
+          "Copied ✓";
+
+      }
+
+      setTimeout(
+        () => {
+
+          if (button) {
+
+            button.textContent =
+              oldText;
+
+          }
+
+        },
+        1600
+      );
+
+    } catch {
+
+      alert(
+        `Test Code: ${code}`
+      );
+
+    }
+
+  }
+);
+
+
+/* =========================================================
+   HOME NAVIGATION
+   ========================================================= */
+
+$("showCreateBtn")?.addEventListener(
+  "click",
+  () => {
+
+    showScreen(
+      "createScreen"
+    );
+
+    renderOptionSettings();
+
+  }
+);
+
+
+$("showJoinBtn")?.addEventListener(
+  "click",
+  () => {
+
+    showScreen(
+      "joinScreen"
+    );
+
+    $("joinCode")
+      ?.focus();
+
+  }
+);
+
+
+$("backHomeFromCreate")?.addEventListener(
+  "click",
+  () => {
+
+    showScreen(
+      "homeScreen"
+    );
+
+  }
+);
+
+
+$("backHomeFromJoin")?.addEventListener(
+  "click",
+  () => {
+
+    showScreen(
+      "homeScreen"
+    );
+
+  }
+);
+
+
+$("goHomeAfterCreate")?.addEventListener(
+  "click",
+  () => {
+
+    showScreen(
+      "homeScreen"
+    );
+
+  }
+);
+
+
+$("backToCreateBtn")?.addEventListener(
+  "click",
+  () => {
+
+    showScreen(
+      "createScreen"
+    );
+
   }
 );
 
@@ -2550,7 +2906,15 @@ $("exitExamBtn")?.addEventListener(
       if (!confirmed) {
         return;
       }
+
     }
+
+    /*
+      Invalidate any PDF render that may
+      still be in progress.
+    */
+
+    pdfRenderToken++;
 
     currentTest =
       null;
@@ -2567,84 +2931,13 @@ $("exitExamBtn")?.addEventListener(
     candidateName =
       "";
 
-    showScreen(
-      "homeScreen"
-    );
-  }
-);
-
-
-/* =========================================================
-   HOME NAVIGATION
-   ========================================================= */
-
-$("showCreateBtn")?.addEventListener(
-  "click",
-  () => {
-
-    showScreen(
-      "createScreen"
-    );
-
-    renderOptionSettings();
-  }
-);
-
-
-$("showJoinBtn")?.addEventListener(
-  "click",
-  () => {
-
-    showScreen(
-      "joinScreen"
-    );
-
-    $("joinCode")
-      ?.focus();
-  }
-);
-
-
-$("backHomeFromCreate")?.addEventListener(
-  "click",
-  () => {
+    pendingPdfRender =
+      null;
 
     showScreen(
       "homeScreen"
     );
-  }
-);
 
-
-$("backHomeFromJoin")?.addEventListener(
-  "click",
-  () => {
-
-    showScreen(
-      "homeScreen"
-    );
-  }
-);
-
-
-$("goHomeAfterCreate")?.addEventListener(
-  "click",
-  () => {
-
-    showScreen(
-      "homeScreen"
-    );
-  }
-);
-
-
-$("backToCreateBtn")?.addEventListener(
-  "click",
-  () => {
-
-    showScreen(
-      "createScreen"
-    );
   }
 );
 
@@ -2669,31 +2962,36 @@ $("clearCreateBtn")?.addEventListener(
     const pdfStatus =
       $("pdfStatus");
 
-    const previewBox =
-      $("pdfPreviewBox");
-
     if (testName) {
+
       testName.value =
         "";
+
     }
 
     if (pdfFile) {
+
       pdfFile.value =
         "";
+
     }
 
     if (questionCount) {
+
       questionCount.value =
         "40";
+
     }
 
     if (pdfStatus) {
+
       pdfStatus.textContent =
         "";
+
     }
 
     hide(
-      previewBox
+      $("pdfPreviewBox")
     );
 
     currentPdfUrl =
@@ -2709,6 +3007,7 @@ $("clearCreateBtn")?.addEventListener(
       [];
 
     renderOptionSettings();
+
   }
 );
 
@@ -2728,16 +3027,17 @@ $("questionCount")?.addEventListener(
       );
 
     if (
-      !Number.isInteger(
+      Number.isInteger(
         count
-      ) ||
-      count < 1 ||
-      count > 300
+      ) &&
+      count >= 1 &&
+      count <= 300
     ) {
-      return;
+
+      renderOptionSettings();
+
     }
 
-    renderOptionSettings();
   }
 );
 
@@ -2750,7 +3050,7 @@ $("defaultOptions")?.addEventListener(
   "change",
   () => {
 
-    const selected =
+    const value =
       normalizeOptionCount(
         $("defaultOptions")
           ?.value
@@ -2764,11 +3064,11 @@ $("defaultOptions")?.addEventListener(
         (select) => {
 
           select.value =
-            String(
-              selected
-            );
+            String(value);
+
         }
       );
+
   }
 );
 
@@ -2792,6 +3092,7 @@ $("joinCode")?.addEventListener(
           0,
           6
         );
+
   }
 );
 
@@ -2811,8 +3112,11 @@ $("joinCode")?.addEventListener(
 
       event.preventDefault();
 
-      $("joinBtn")?.click();
+      $("joinBtn")
+        ?.click();
+
     }
+
   }
 );
 
@@ -2827,32 +3131,29 @@ document.addEventListener(
 
     renderOptionSettings();
 
-    /*
-     * Make sure the home screen
-     * is visible on first load.
-     */
-
     const screens =
       document.querySelectorAll(
         ".screen"
       );
 
-    const visibleScreen =
-      Array.from(
-        screens
-      ).find(
-        (screen) =>
-          !screen.classList.contains(
-            "hidden"
-          )
-      );
+    const visible =
+      Array
+        .from(screens)
+        .some(
+          (screen) =>
+            !screen.classList.contains(
+              "hidden"
+            )
+        );
 
-    if (!visibleScreen) {
+    if (!visible) {
 
       showScreen(
         "homeScreen"
       );
+
     }
+
   }
 );
 
@@ -2869,10 +3170,11 @@ window.addEventListener(
       "Unhandled promise rejection:",
       event.reason
     );
+
   }
 );
 
 
 /* =========================================================
-   END OF SCRIPT
+   END
    ========================================================= */
