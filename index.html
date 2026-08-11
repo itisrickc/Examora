@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+
   <meta
     name="viewport"
     content="width=device-width, initial-scale=1.0"
@@ -29,13 +30,8 @@
   <header class="topbar">
 
     <div class="container brand">
-      <div class="brand-mark">
-        OMR
-      </div>
-
-      <div>
-        Exam OMR
-      </div>
+      <span class="brand-mark">OMR</span>
+      <span>Exam OMR</span>
     </div>
 
   </header>
@@ -49,7 +45,7 @@
 
 
     <!-- ===================================================
-         HOME
+         HOME SCREEN
          =================================================== -->
 
     <section
@@ -64,36 +60,99 @@
         </div>
 
         <h1>
-          Exam OMR
+          Online Exam OMR
         </h1>
 
         <p>
-          Create online tests, upload question papers,
-          generate OMR sheets and check results easily.
+          Create tests, take exams and check results
+          easily from any device.
         </p>
+
 
         <div class="home-actions">
 
           <button
             id="showCreateBtn"
-            class="primary-btn"
+            class="primary-btn full-btn"
+            type="button"
           >
             Create New Test
           </button>
 
+
           <button
             id="showJoinBtn"
-            class="secondary-btn"
+            class="secondary-btn full-btn"
+            type="button"
           >
             Join Test with Code
           </button>
 
+
           <button
-            id="showResultsBtn"
-            class="ghost-btn"
+            id="showResultBtn"
+            class="ghost-btn full-btn"
+            type="button"
           >
-            Check Results
+            Check Result
           </button>
+
+        </div>
+
+      </div>
+
+
+      <!-- HOME FEATURES -->
+
+      <div class="feature-grid">
+
+        <div class="feature-card">
+
+          <div class="feature-icon">
+            +
+          </div>
+
+          <strong>
+            Easy Test Creation
+          </strong>
+
+          <span>
+            Upload your question paper and create an exam.
+          </span>
+
+        </div>
+
+
+        <div class="feature-card">
+
+          <div class="feature-icon">
+            ○
+          </div>
+
+          <strong>
+            OMR Based
+          </strong>
+
+          <span>
+            Select answers using simple OMR bubbles.
+          </span>
+
+        </div>
+
+
+        <div class="feature-card">
+
+          <div class="feature-icon">
+            ✓
+          </div>
+
+          <strong>
+            Instant Result
+          </strong>
+
+          <span>
+            Get score, percentage and answer statistics.
+          </span>
 
         </div>
 
@@ -102,8 +161,9 @@
     </section>
 
 
+
     <!-- ===================================================
-         CREATE TEST
+         CREATE TEST SCREEN
          =================================================== -->
 
     <section
@@ -117,30 +177,34 @@
 
           <div>
 
-            <span class="eyebrow">
+            <div class="eyebrow">
               TEST CREATOR
-            </span>
+            </div>
 
             <h2>
               Create New Test
             </h2>
 
             <p>
-              Upload your question paper and configure
-              the OMR sheet.
+              Upload a question paper and configure
+              your examination.
             </p>
 
           </div>
 
+
           <button
             id="backHomeFromCreate"
             class="small-btn secondary-btn"
+            type="button"
           >
             ← Back
           </button>
 
         </div>
 
+
+        <!-- TEST NAME -->
 
         <label for="testName">
           Test Name
@@ -149,10 +213,12 @@
         <input
           id="testName"
           type="text"
-          placeholder="E.g. Physics Test 1"
+          placeholder="Example: Bengali Test Series III"
           autocomplete="off"
         >
 
+
+        <!-- PDF -->
 
         <label for="pdfFile">
           Question Paper PDF
@@ -175,28 +241,23 @@
           class="pdf-preview hidden"
         >
 
-          <div class="pdf-toolbar">
+          <div class="pdf-preview-header">
 
             <strong>
               PDF Preview
             </strong>
 
-            <span
-              id="createPdfPageInfo"
-              class="pdf-page-info"
-            >
-              0 / 0
-            </span>
-
           </div>
 
-          <div
-            id="createPdfViewer"
-            class="pdf-viewer"
-          ></div>
+          <iframe
+            id="pdfPreview"
+            title="Question Paper Preview"
+          ></iframe>
 
         </div>
 
+
+        <!-- BASIC SETTINGS -->
 
         <div class="form-grid">
 
@@ -240,14 +301,17 @@
         </div>
 
 
+        <!-- QUESTION OPTIONS -->
+
         <h3 class="sub-heading">
           Question Options
         </h3>
 
         <p class="hint">
-          Select 2 or 4 options for individual questions
-          when required.
+          Choose whether each question should have
+          2 or 4 options.
         </p>
+
 
         <div
           id="optionSettings"
@@ -255,18 +319,23 @@
         ></div>
 
 
+        <!-- ACTIONS -->
+
         <div class="actions">
 
           <button
             id="generateBtn"
             class="primary-btn"
+            type="button"
           >
-            Generate OMR
+            Generate Test
           </button>
+
 
           <button
             id="clearCreateBtn"
             class="secondary-btn"
+            type="button"
           >
             Clear
           </button>
@@ -278,8 +347,9 @@
     </section>
 
 
+
     <!-- ===================================================
-         ANSWER KEY
+         ANSWER KEY SCREEN
          =================================================== -->
 
     <section
@@ -293,103 +363,16 @@
 
           <div>
 
-            <span class="eyebrow">
+            <div class="eyebrow">
               ANSWER KEY
-            </span>
+            </div>
 
             <h2>
-              Set Answer Key
+              Set Correct Answers
             </h2>
 
             <p>
-              Enter all answers at once or select them
-              manually.
-            </p>
-
-          </div>
-
-        </div>
-
-
-        <!-- BULK ANSWER KEY -->
-
-        <div class="bulk-answer-card">
-
-          <div class="bulk-answer-header">
-
-            <div>
-
-              <h3>
-                ⚡ Bulk Answer Key
-              </h3>
-
-              <p>
-                Paste answers like:
-                <strong>
-                  B A C D A B
-                </strong>
-              </p>
-
-            </div>
-
-            <span
-              id="answerCountBadge"
-              class="progress-badge"
-            >
-              0 / 0
-            </span>
-
-          </div>
-
-
-          <textarea
-            id="bulkAnswerInput"
-            class="bulk-answer-input"
-            rows="5"
-            placeholder="B A C D A B C D A B..."
-            spellcheck="false"
-          ></textarea>
-
-
-          <div class="bulk-answer-actions">
-
-            <button
-              id="applyBulkAnswerBtn"
-              class="primary-btn"
-            >
-              Apply Answer Key
-            </button>
-
-            <button
-              id="clearBulkAnswerBtn"
-              class="secondary-btn"
-            >
-              Clear
-            </button>
-
-          </div>
-
-
-          <div
-            id="bulkAnswerStatus"
-            class="status-box hidden"
-          ></div>
-
-        </div>
-
-
-        <!-- MANUAL ANSWER KEY -->
-
-        <div class="manual-answer-header">
-
-          <div>
-
-            <h3>
-              Manual Answer Key
-            </h3>
-
-            <p>
-              You can still edit individual answers below.
+              Select the correct answer for each question.
             </p>
 
           </div>
@@ -403,7 +386,7 @@
         ></div>
 
 
-        <!-- MARKS -->
+        <!-- MARKING -->
 
         <div class="form-grid marks-grid">
 
@@ -426,7 +409,7 @@
           <div>
 
             <label for="wrongMark">
-              Negative Marking
+              Negative Marks
             </label>
 
             <input
@@ -441,18 +424,23 @@
         </div>
 
 
+        <!-- ACTIONS -->
+
         <div class="actions">
 
           <button
             id="saveTestBtn"
             class="primary-btn"
+            type="button"
           >
             Save Test
           </button>
 
+
           <button
             id="backToCreateBtn"
             class="secondary-btn"
+            type="button"
           >
             ← Back
           </button>
@@ -470,8 +458,9 @@
     </section>
 
 
+
     <!-- ===================================================
-         TEST CREATED
+         TEST CREATED SCREEN
          =================================================== -->
 
     <section
@@ -485,23 +474,27 @@
           ✓
         </div>
 
-        <span class="eyebrow">
-          TEST READY
-        </span>
+
+        <div class="eyebrow">
+          TEST CREATED
+        </div>
+
 
         <h2>
           Test Created Successfully
         </h2>
 
+
         <p>
-          Share this Test Code with the student.
+          Share this Test Code with the students
+          who want to take the exam.
         </p>
 
 
         <div class="test-code-box">
 
           <span>
-            Test Code
+            TEST CODE
           </span>
 
           <strong id="createdCode">
@@ -511,20 +504,23 @@
         </div>
 
 
-        <div class="stack-actions">
+        <div class="created-actions">
 
           <button
             id="copyCodeBtn"
-            class="primary-btn"
+            class="primary-btn full-btn"
+            type="button"
           >
-            Copy Code
+            Copy Test Code
           </button>
+
 
           <button
             id="goHomeAfterCreate"
-            class="secondary-btn"
+            class="secondary-btn full-btn"
+            type="button"
           >
-            Home
+            Back to Home
           </button>
 
         </div>
@@ -534,8 +530,9 @@
     </section>
 
 
+
     <!-- ===================================================
-         JOIN TEST
+         JOIN TEST SCREEN
          =================================================== -->
 
     <section
@@ -548,24 +545,30 @@
         <button
           id="backHomeFromJoin"
           class="small-btn secondary-btn"
+          type="button"
         >
           ← Back
         </button>
+
 
         <div class="join-icon">
           →
         </div>
 
-        <span class="eyebrow">
-          STUDENT
-        </span>
+
+        <div class="eyebrow">
+          JOIN EXAM
+        </div>
+
 
         <h2>
           Join Test
         </h2>
 
+
         <p>
-          Enter the Test Code provided by the creator.
+          Enter the Test Code provided by your teacher
+          or test creator.
         </p>
 
 
@@ -579,12 +582,14 @@
           maxlength="6"
           placeholder="A7K92P"
           autocomplete="off"
+          spellcheck="false"
         >
 
 
         <button
           id="joinBtn"
           class="primary-btn full-btn"
+          type="button"
         >
           Continue
         </button>
@@ -600,118 +605,9 @@
     </section>
 
 
-    <!-- ===================================================
-         STUDENT DETAILS
-         =================================================== -->
-
-    <section
-      id="studentScreen"
-      class="screen hidden"
-    >
-
-      <div class="card student-card">
-
-        <div class="section-header">
-
-          <div>
-
-            <span class="eyebrow">
-              STUDENT DETAILS
-            </span>
-
-            <h2>
-              Before You Start
-            </h2>
-
-            <p id="studentTestInfo">
-              Enter your details before starting the exam.
-            </p>
-
-          </div>
-
-        </div>
-
-
-        <div class="student-test-preview">
-
-          <strong id="studentTestName">
-            Test
-          </strong>
-
-          <span id="studentTestCode">
-            Code: ------
-          </span>
-
-        </div>
-
-
-        <label for="studentName">
-          Name
-        </label>
-
-        <input
-          id="studentName"
-          type="text"
-          placeholder="Enter your name"
-          autocomplete="name"
-        >
-
-
-        <label for="studentRoll">
-          Roll Number
-        </label>
-
-        <input
-          id="studentRoll"
-          type="text"
-          placeholder="Enter roll number"
-          autocomplete="off"
-        >
-
-
-        <label for="studentSection">
-          Section
-        </label>
-
-        <input
-          id="studentSection"
-          type="text"
-          placeholder="Optional"
-          autocomplete="off"
-        >
-
-
-        <div class="actions">
-
-          <button
-            id="startExamBtn"
-            class="primary-btn full-btn"
-          >
-            Start Exam
-          </button>
-
-          <button
-            id="backToJoinBtn"
-            class="secondary-btn full-btn"
-          >
-            ← Back
-          </button>
-
-        </div>
-
-
-        <div
-          id="studentStatus"
-          class="status-box hidden"
-        ></div>
-
-      </div>
-
-    </section>
-
 
     <!-- ===================================================
-         EXAM
+         EXAM SCREEN
          =================================================== -->
 
     <section
@@ -719,13 +615,16 @@
       class="screen hidden"
     >
 
+
+      <!-- EXAM HEADER -->
+
       <div class="exam-header card">
 
         <div>
 
-          <span class="eyebrow">
+          <div class="eyebrow">
             LIVE EXAM
-          </span>
+          </div>
 
           <h2 id="examName">
             Exam
@@ -740,16 +639,18 @@
 
         <div class="exam-header-actions">
 
-          <div
-            id="examTimer"
-            class="timer-badge hidden"
+          <span
+            id="questionProgress"
+            class="progress-badge"
           >
-            ⏱ 00:00
-          </div>
+            0 / 0
+          </span>
+
 
           <button
             id="exitExamBtn"
             class="secondary-btn small-btn"
+            type="button"
           >
             Exit
           </button>
@@ -759,37 +660,71 @@
       </div>
 
 
-      <!-- STUDENT BAR -->
+
+      <!-- CANDIDATE INFORMATION -->
 
       <div
-        id="examStudentBar"
-        class="exam-student-bar card"
+        id="candidateCard"
+        class="card candidate-card"
       >
-
-        <div class="student-mini-avatar">
-          S
-        </div>
 
         <div>
 
-          <strong id="examStudentName">
-            Student
-          </strong>
+          <div class="eyebrow">
+            CANDIDATE
+          </div>
 
-          <span id="examStudentInfo">
-            Roll —
-          </span>
+          <h3>
+            Enter Your Name
+          </h3>
+
+          <p>
+            Your name will appear with your result.
+          </p>
 
         </div>
+
+
+        <div class="candidate-input-row">
+
+          <input
+            id="candidateName"
+            type="text"
+            placeholder="Enter your full name"
+            maxlength="100"
+            autocomplete="name"
+          >
+
+          <button
+            id="saveCandidateBtn"
+            class="primary-btn"
+            type="button"
+          >
+            Continue
+          </button>
+
+        </div>
+
+
+        <div
+          id="candidateStatus"
+          class="status-box hidden"
+        ></div>
 
       </div>
 
 
-      <div class="exam-workspace">
+
+      <!-- EXAM WORKSPACE -->
+
+      <div
+        id="examWorkspace"
+        class="exam-workspace hidden"
+      >
 
 
         <!-- ===============================================
-             PDF
+             QUESTION PAPER
              =============================================== -->
 
         <div class="card pdf-card">
@@ -798,32 +733,71 @@
 
             <div>
 
+              <div class="eyebrow">
+                QUESTION PAPER
+              </div>
+
               <h3>
                 Question Paper
               </h3>
 
-              <p>
-                Scroll to view the question paper.
-              </p>
-
             </div>
 
-            <span
-              id="examPdfPageInfo"
-              class="pdf-page-info"
+
+            <a
+              id="openPdfBtn"
+              class="small-btn secondary-btn"
+              href="#"
+              target="_blank"
+              rel="noopener noreferrer"
             >
-              0 / 0
-            </span>
+              Open PDF
+            </a>
 
           </div>
 
 
-          <div
-            id="examPdfViewer"
-            class="pdf-viewer exam-pdf-viewer"
-          ></div>
+          <div class="pdf-viewer-wrapper">
+
+            <iframe
+              id="examPdf"
+              title="Exam Question Paper"
+              loading="lazy"
+            ></iframe>
+
+
+            <div class="pdf-mobile-fallback">
+
+              <div class="pdf-fallback-icon">
+                PDF
+              </div>
+
+              <strong>
+                Question Paper
+              </strong>
+
+              <span>
+                If the PDF is not visible,
+                open it separately.
+              </span>
+
+
+              <a
+                id="openPdfFallbackBtn"
+                class="primary-btn"
+                href="#"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Open Question Paper
+              </a>
+
+            </div>
+
+          </div>
 
         </div>
+
 
 
         <!-- ===============================================
@@ -836,9 +810,9 @@
 
             <div>
 
-              <span class="eyebrow">
+              <div class="eyebrow">
                 ANSWER SHEET
-              </span>
+              </div>
 
               <h3>
                 OMR Answer Sheet
@@ -850,8 +824,9 @@
 
             </div>
 
+
             <span
-              id="questionProgress"
+              id="omrProgress"
               class="progress-badge"
             >
               0 / 0
@@ -860,13 +835,7 @@
           </div>
 
 
-          <!-- QUESTION NAVIGATOR -->
-
-          <div
-            id="questionNavigator"
-            class="question-navigator"
-          ></div>
-
+          <!-- OMR GRID -->
 
           <div
             id="examGrid"
@@ -874,24 +843,40 @@
           ></div>
 
 
+          <!-- EXAM ACTIONS -->
+
           <div class="exam-actions">
 
             <button
               id="submitExamBtn"
               class="primary-btn"
+              type="button"
             >
               Submit & Check
             </button>
 
+
             <button
               id="resetExamBtn"
               class="secondary-btn"
+              type="button"
             >
-              Clear Answers
+              Reset Answers
+            </button>
+
+
+            <button
+              id="printOmrBtn"
+              class="ghost-btn"
+              type="button"
+            >
+              Print OMR
             </button>
 
           </div>
 
+
+          <!-- RESULT -->
 
           <div
             id="resultBox"
@@ -905,24 +890,25 @@
     </section>
 
 
+
     <!-- ===================================================
-         RESULTS CHECK
+         RESULT CHECK SCREEN
          =================================================== -->
 
     <section
-      id="resultsScreen"
+      id="resultScreen"
       class="screen hidden"
     >
 
-      <div class="card">
+      <div class="card result-check-card">
 
         <div class="section-header">
 
           <div>
 
-            <span class="eyebrow">
+            <div class="eyebrow">
               RESULTS
-            </span>
+            </div>
 
             <h2>
               Check Test Results
@@ -930,14 +916,16 @@
 
             <p>
               Enter the Test Code to view the results
-              of everyone who submitted that test.
+              of candidates who submitted the exam.
             </p>
 
           </div>
 
+
           <button
-            id="backHomeFromResults"
+            id="backHomeFromResult"
             class="small-btn secondary-btn"
+            type="button"
           >
             ← Back
           </button>
@@ -945,41 +933,162 @@
         </div>
 
 
-        <div class="result-search">
+        <label for="resultTestCode">
+          Test Code
+        </label>
 
-          <input
-            id="resultTestCode"
-            type="text"
-            maxlength="6"
-            placeholder="Enter Test Code"
-            autocomplete="off"
-          >
+        <input
+          id="resultTestCode"
+          type="text"
+          maxlength="6"
+          placeholder="A7K92P"
+          autocomplete="off"
+          spellcheck="false"
+        >
 
-          <button
-            id="checkResultsBtn"
-            class="primary-btn"
-          >
-            Check Results
-          </button>
+
+        <button
+          id="checkResultBtn"
+          class="primary-btn full-btn"
+          type="button"
+        >
+          Check Results
+        </button>
+
+
+        <div
+          id="resultCheckStatus"
+          class="status-box hidden"
+        ></div>
+
+      </div>
+
+
+
+      <!-- RESULT SUMMARY -->
+
+      <div
+        id="resultSummaryCard"
+        class="card result-summary-card hidden"
+      >
+
+        <div class="result-summary-header">
+
+          <div>
+
+            <div class="eyebrow">
+              TEST RESULT
+            </div>
+
+            <h2 id="resultTestName">
+              Test Results
+            </h2>
+
+            <p id="resultTestInfo">
+              --
+            </p>
+
+          </div>
 
         </div>
 
 
         <div
-          id="resultsStatus"
-          class="status-box hidden"
+          id="resultSummaryStats"
+          class="result-stats"
         ></div>
 
+      </div>
+
+
+
+      <!-- ALL CANDIDATE RESULTS -->
+
+      <div
+        id="candidateResultsCard"
+        class="card candidate-results-card hidden"
+      >
+
+        <div class="section-header">
+
+          <div>
+
+            <div class="eyebrow">
+              CANDIDATES
+            </div>
+
+            <h2>
+              All Results
+            </h2>
+
+            <p>
+              Results submitted for this test.
+            </p>
+
+          </div>
+
+        </div>
+
+
+        <div class="table-wrapper">
+
+          <table class="results-table">
+
+            <thead>
+
+              <tr>
+
+                <th>
+                  #
+                </th>
+
+                <th>
+                  Name
+                </th>
+
+                <th>
+                  Correct
+                </th>
+
+                <th>
+                  Wrong
+                </th>
+
+                <th>
+                  Unanswered
+                </th>
+
+                <th>
+                  Score
+                </th>
+
+                <th>
+                  Percentage
+                </th>
+
+                <th>
+                  Submitted
+                </th>
+
+              </tr>
+
+            </thead>
+
+
+            <tbody
+              id="candidateResultsBody"
+            ></tbody>
+
+          </table>
+
+        </div>
+
+
+        <!-- MOBILE RESULT CARDS -->
 
         <div
-          id="resultsSummary"
-          class="results-summary hidden"
-        ></div>
-
-
-        <div
-          id="resultsTableWrapper"
-          class="results-table-wrapper hidden"
+          id="mobileResultsList"
+          class="mobile-results-list"
         ></div>
 
       </div>
@@ -987,8 +1096,9 @@
     </section>
 
 
+
     <!-- ===================================================
-         LOADING
+         LOADING OVERLAY
          =================================================== -->
 
     <div
@@ -1008,17 +1118,8 @@
 
     </div>
 
-
   </main>
 
-
-  <!-- =====================================================
-       PDF.JS
-       ===================================================== -->
-
-  <script
-    src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"
-  ></script>
 
 
   <!-- =====================================================
@@ -1031,7 +1132,7 @@
 
 
   <!-- =====================================================
-       APP
+       MAIN JAVASCRIPT
        ===================================================== -->
 
   <script src="script.js"></script>
