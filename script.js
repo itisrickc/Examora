@@ -1,5 +1,11 @@
 /* =========================================================
-   EXAM OMR — FINAL script.js
+   EXAM OMR
+   FINAL MAIN JAVASCRIPT
+   ========================================================= */
+
+
+/* =========================================================
+   SUPABASE CONFIGURATION
    ========================================================= */
 
 const SUPABASE_URL =
@@ -22,24 +28,12 @@ const supabaseClient =
 const STORAGE_BUCKET =
   "question-papers";
 
-const OPTION_LABELS =
-  ["A", "B", "C", "D"];
-
-
-/*
-  We use the official Mozilla PDF.js viewer
-  inside an iframe instead of rendering PDF pages
-  ourselves on canvas.
-
-  This is specifically intended to improve:
-  - Android compatibility
-  - zoom
-  - page navigation
-  - touch scrolling
-*/
-
-const PDFJS_VIEWER_URL =
-  "https://mozilla.github.io/pdf.js/web/viewer.html";
+const OPTION_LABELS = [
+  "A",
+  "B",
+  "C",
+  "D"
+];
 
 
 /* =========================================================
@@ -60,18 +54,9 @@ let selectedAnswers = [];
 
 let testCreatedCode = "";
 
+let currentResult = null;
+
 let candidateName = "";
-
-
-/*
-  PDF viewer state
-*/
-
-let currentPdfDocument = null;
-
-let currentPdfPage = 1;
-
-let currentPdfScale = 1;
 
 
 /* =========================================================
@@ -83,32 +68,31 @@ const $ = (id) =>
 
 
 function show(element) {
-
-  if (element) {
-    element.classList.remove(
-      "hidden"
-    );
+  if (!element) {
+    return;
   }
 
+  element.classList.remove(
+    "hidden"
+  );
 }
 
 
 function hide(element) {
-
-  if (element) {
-    element.classList.add(
-      "hidden"
-    );
+  if (!element) {
+    return;
   }
 
+  element.classList.add(
+    "hidden"
+  );
 }
 
 
 function setLoading(
-  active,
+  showLoading,
   text = "Please wait..."
 ) {
-
   const overlay =
     $("loadingOverlay");
 
@@ -116,22 +100,15 @@ function setLoading(
     $("loadingText");
 
   if (loadingText) {
-
     loadingText.textContent =
       text;
-
   }
 
-  if (active) {
-
+  if (showLoading) {
     show(overlay);
-
   } else {
-
     hide(overlay);
-
   }
-
 }
 
 
@@ -140,7 +117,6 @@ function showStatus(
   message,
   type = ""
 ) {
-
   if (!element) {
     return;
   }
@@ -152,102 +128,51 @@ function showStatus(
     "status-box";
 
   if (type) {
-
     element.classList.add(
       type
     );
-
   }
 
   show(element);
-
 }
 
 
 function hideStatus(element) {
-
   if (!element) {
     return;
   }
 
   hide(element);
-
 }
 
 
-function showScreen(
-  screenId
-) {
+/* =========================================================
+   SCREEN NAVIGATION
+   ========================================================= */
 
-  document
-    .querySelectorAll(".screen")
-    .forEach(
-      (screen) => {
-
-        hide(screen);
-
-      }
+function showScreen(screenId) {
+  const screens =
+    document.querySelectorAll(
+      ".screen"
     );
+
+  screens.forEach(
+    (screen) => {
+      hide(screen);
+    }
+  );
 
   const target =
     $(screenId);
 
   if (target) {
-
     show(target);
-
   }
 
   window.scrollTo({
     top: 0,
     behavior: "smooth"
   });
-
-}
-
-
-function escapeHtml(value) {
-
-  return String(
-    value ?? ""
-  )
-    .replace(
-      /&/g,
-      "&amp;"
-    )
-    .replace(
-      /</g,
-      "&lt;"
-    )
-    .replace(
-      />/g,
-      "&gt;"
-    )
-    .replace(
-      /"/g,
-      "&quot;"
-    )
-    .replace(
-      /'/g,
-      "&#039;"
-    );
-
-}
-
-
-function formatNumber(
-  value
-) {
-
-  return Number(
-    value || 0
-  )
-    .toFixed(2)
-    .replace(
-      /\.00$/,
-      ""
-    );
-
 }
 
 
@@ -256,27 +181,26 @@ function formatNumber(
    ========================================================= */
 
 function getOptionLabels(
-  count
+  optionCount
 ) {
-
   return OPTION_LABELS.slice(
     0,
-    Number(count) === 2
-      ? 2
-      : 4
+    normalizeOptionCount(
+      optionCount
+    )
   );
-
 }
 
 
 function normalizeOptionCount(
   value
 ) {
+  const number =
+    Number(value);
 
-  return Number(value) === 2
+  return number === 2
     ? 2
     : 4;
-
 }
 
 
@@ -285,7 +209,6 @@ function normalizeOptionCount(
    ========================================================= */
 
 function generateTestCode() {
-
   const characters =
     "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
@@ -296,7 +219,6 @@ function generateTestCode() {
     i < 6;
     i++
   ) {
-
     const randomIndex =
       Math.floor(
         Math.random() *
@@ -304,25 +226,19 @@ function generateTestCode() {
       );
 
     code +=
-      characters[
-        randomIndex
-      ];
-
+      characters[randomIndex];
   }
 
   return code;
-
 }
 
 
 async function generateUniqueTestCode() {
-
   for (
     let attempt = 0;
     attempt < 15;
     attempt++
   ) {
-
     const code =
       generateTestCode();
 
@@ -347,17 +263,13 @@ async function generateUniqueTestCode() {
       !data ||
       data.length === 0
     ) {
-
       return code;
-
     }
-
   }
 
   throw new Error(
     "Could not generate a unique test code."
   );
-
 }
 
 
@@ -367,7 +279,6 @@ async function generateUniqueTestCode() {
    ========================================================= */
 
 function renderOptionSettings() {
-
   const container =
     $("optionSettings");
 
@@ -381,14 +292,16 @@ function renderOptionSettings() {
       Math.min(
         300,
         Number(
-          $("questionCount")?.value
+          $("questionCount")
+            ?.value
         ) || 40
       )
     );
 
-  const defaultCount =
+  const defaultOptionCount =
     normalizeOptionCount(
-      $("defaultOptions")?.value
+      $("defaultOptions")
+        ?.value
     );
 
   currentQuestionCount =
@@ -402,7 +315,6 @@ function renderOptionSettings() {
     i <= count;
     i++
   ) {
-
     const wrapper =
       document.createElement(
         "div"
@@ -411,65 +323,72 @@ function renderOptionSettings() {
     wrapper.className =
       "option-setting";
 
-    wrapper.innerHTML = `
-      <div class="option-setting-number">
-        ${i}
-      </div>
+    const number =
+      document.createElement(
+        "div"
+      );
 
-      <select
-        class="question-option-count"
-        data-question="${i}"
-      >
+    number.className =
+      "option-setting-number";
 
-        <option
-          value="4"
-          ${
-            defaultCount === 4
-              ? "selected"
-              : ""
-          }
-        >
-          4 Options
-        </option>
+    number.textContent =
+      i;
 
-        <option
-          value="2"
-          ${
-            defaultCount === 2
-              ? "selected"
-              : ""
-          }
-        >
-          2 Options
-        </option>
+    const select =
+      document.createElement(
+        "select"
+      );
 
-      </select>
+    select.className =
+      "question-option-count";
+
+    select.dataset.question =
+      String(i);
+
+    select.innerHTML = `
+      <option value="4">
+        4 Options
+      </option>
+
+      <option value="2">
+        2 Options
+      </option>
     `;
+
+    select.value =
+      String(
+        defaultOptionCount
+      );
+
+    wrapper.appendChild(
+      number
+    );
+
+    wrapper.appendChild(
+      select
+    );
 
     container.appendChild(
       wrapper
     );
-
   }
-
 }
 
 
 function collectQuestionOptions() {
-
-  return Array
-    .from(
-      document.querySelectorAll(
-        ".question-option-count"
-      )
-    )
-    .map(
-      (select) =>
-        normalizeOptionCount(
-          select.value
-        )
+  const selects =
+    document.querySelectorAll(
+      ".question-option-count"
     );
 
+  return Array.from(
+    selects
+  ).map(
+    (select) =>
+      normalizeOptionCount(
+        select.value
+      )
+  );
 }
 
 
@@ -480,10 +399,9 @@ function collectQuestionOptions() {
 $("pdfFile")?.addEventListener(
   "change",
   (event) => {
-
     const file =
       event.target
-        ?.files?.[0];
+        .files?.[0];
 
     const status =
       $("pdfStatus");
@@ -494,41 +412,43 @@ $("pdfFile")?.addEventListener(
     const preview =
       $("pdfPreview");
 
-    hide(previewBox);
+    currentPdfUrl =
+      "";
+
+    hide(
+      previewBox
+    );
 
     if (!file) {
-
       if (status) {
-
         status.textContent =
           "";
+      }
 
+      if (preview) {
+        preview.src =
+          "";
       }
 
       return;
-
     }
 
     if (
       file.type !==
       "application/pdf"
     ) {
-
       event.target.value =
         "";
 
       if (status) {
-
         status.textContent =
           "Please select a PDF file.";
 
         status.style.color =
-          "#dc2626";
-
+          "";
       }
 
       return;
-
     }
 
     const localUrl =
@@ -537,24 +457,21 @@ $("pdfFile")?.addEventListener(
       );
 
     if (preview) {
-
       preview.src =
         localUrl;
-
     }
 
-    show(previewBox);
+    show(
+      previewBox
+    );
 
     if (status) {
-
       status.textContent =
         `${file.name} selected.`;
 
       status.style.color =
         "#16a34a";
-
     }
-
   }
 );
 
@@ -567,20 +484,17 @@ async function uploadQuestionPaper(
   file,
   code
 ) {
-
   if (!file) {
-
     throw new Error(
       "Please select a question paper PDF."
     );
-
   }
 
   const fileName =
     `${code}-${Date.now()}.pdf`;
 
   const {
-    error
+    error: uploadError
   } =
     await supabaseClient
       .storage
@@ -602,8 +516,8 @@ async function uploadQuestionPaper(
         }
       );
 
-  if (error) {
-    throw error;
+  if (uploadError) {
+    throw uploadError;
   }
 
   const {
@@ -622,15 +536,12 @@ async function uploadQuestionPaper(
     !data ||
     !data.publicUrl
   ) {
-
     throw new Error(
       "Could not create PDF URL."
     );
-
   }
 
   return data.publicUrl;
-
 }
 
 
@@ -639,7 +550,6 @@ async function uploadQuestionPaper(
    ========================================================= */
 
 function renderAnswerKey() {
-
   const container =
     $("answerKeyGrid");
 
@@ -660,7 +570,6 @@ function renderAnswerKey() {
     i < currentQuestionCount;
     i++
   ) {
-
     const item =
       document.createElement(
         "div"
@@ -669,92 +578,93 @@ function renderAnswerKey() {
     item.className =
       "answer-key-item";
 
+    const title =
+      document.createElement(
+        "strong"
+      );
+
+    title.textContent =
+      `Question ${i + 1}`;
+
+    const select =
+      document.createElement(
+        "select"
+      );
+
+    select.className =
+      "answer-key-select";
+
+    select.dataset.question =
+      String(i);
+
     const labels =
       getOptionLabels(
         currentOptions[i] ||
-        4
+          4
       );
 
-    item.innerHTML = `
-      <strong>
-        Question ${i + 1}
-      </strong>
+    select.innerHTML =
+      `<option value="">
+        Select
+      </option>` +
+      labels
+        .map(
+          (label) =>
+            `<option value="${label}">
+              ${label}
+            </option>`
+        )
+        .join("");
 
-      <select
-        class="answer-key-select"
-        data-question="${i}"
-      >
-
-        <option value="">
-          Select
-        </option>
-
-        ${labels
-          .map(
-            (label) =>
-              `
-                <option value="${label}">
-                  ${label}
-                </option>
-              `
-          )
-          .join("")}
-
-      </select>
-    `;
-
-    const select =
-      item.querySelector(
-        ".answer-key-select"
-      );
-
-    select?.addEventListener(
+    select.addEventListener(
       "change",
       () => {
-
         currentAnswerKey[i] =
           select.value;
-
       }
+    );
+
+    item.appendChild(
+      title
+    );
+
+    item.appendChild(
+      select
     );
 
     container.appendChild(
       item
     );
-
   }
-
 }
 
 
 function collectAnswerKey() {
-
-  return Array
-    .from(
-      document.querySelectorAll(
-        ".answer-key-select"
-      )
-    )
-    .map(
-      (select) =>
-        select.value
+  const selects =
+    document.querySelectorAll(
+      ".answer-key-select"
     );
 
+  return Array.from(
+    selects
+  ).map(
+    (select) =>
+      select.value
+  );
 }
 
 
 /* =========================================================
-   GENERATE TEST
+   CREATE TEST
    ========================================================= */
 
 $("generateBtn")?.addEventListener(
   "click",
   async () => {
-
     const name =
       $("testName")
         ?.value
-        ?.trim();
+        .trim();
 
     const pdfFile =
       $("pdfFile")
@@ -767,23 +677,19 @@ $("generateBtn")?.addEventListener(
       );
 
     if (!name) {
-
       alert(
         "Please enter a test name."
       );
 
       return;
-
     }
 
     if (!pdfFile) {
-
       alert(
         "Please select the question paper PDF."
       );
 
       return;
-
     }
 
     if (
@@ -793,13 +699,11 @@ $("generateBtn")?.addEventListener(
       questionCount < 1 ||
       questionCount > 300
     ) {
-
       alert(
         "Question count must be between 1 and 300."
       );
 
       return;
-
     }
 
     currentQuestionCount =
@@ -810,14 +714,12 @@ $("generateBtn")?.addEventListener(
 
     if (
       currentOptions.length !==
-      questionCount
+      currentQuestionCount
     ) {
-
       renderOptionSettings();
 
       currentOptions =
         collectQuestionOptions();
-
     }
 
     setLoading(
@@ -826,7 +728,6 @@ $("generateBtn")?.addEventListener(
     );
 
     try {
-
       const code =
         await generateUniqueTestCode();
 
@@ -844,11 +745,8 @@ $("generateBtn")?.addEventListener(
       renderAnswerKey();
 
       currentTest = {
-
         name,
-
         code,
-
         pdf_url:
           currentPdfUrl,
 
@@ -857,15 +755,12 @@ $("generateBtn")?.addEventListener(
 
         options:
           currentOptions
-
       };
 
       showScreen(
         "answerKeyScreen"
       );
-
     } catch (error) {
-
       console.error(
         error
       );
@@ -874,15 +769,11 @@ $("generateBtn")?.addEventListener(
         "Could not prepare the test.\n\n" +
         error.message
       );
-
     } finally {
-
       setLoading(
         false
       );
-
     }
-
   }
 );
 
@@ -894,15 +785,12 @@ $("generateBtn")?.addEventListener(
 $("saveTestBtn")?.addEventListener(
   "click",
   async () => {
-
     if (!currentTest) {
-
       alert(
         "No test is ready to save."
       );
 
       return;
-
     }
 
     const answerKey =
@@ -915,13 +803,11 @@ $("saveTestBtn")?.addEventListener(
       );
 
     if (missingAnswers) {
-
       alert(
         "Please select the correct answer for every question."
       );
 
       return;
-
     }
 
     const correctMark =
@@ -941,13 +827,11 @@ $("saveTestBtn")?.addEventListener(
         correctMark
       )
     ) {
-
       alert(
         "Please enter a valid correct mark."
       );
 
       return;
-
     }
 
     if (
@@ -955,13 +839,11 @@ $("saveTestBtn")?.addEventListener(
         wrongMark
       )
     ) {
-
       alert(
         "Please enter a valid wrong mark."
       );
 
       return;
-
     }
 
     setLoading(
@@ -970,9 +852,7 @@ $("saveTestBtn")?.addEventListener(
     );
 
     try {
-
       const payload = {
-
         name:
           currentTest.name,
 
@@ -996,7 +876,6 @@ $("saveTestBtn")?.addEventListener(
 
         code:
           currentTest.code
-
       };
 
       const {
@@ -1018,20 +897,18 @@ $("saveTestBtn")?.addEventListener(
       testCreatedCode =
         data.code;
 
-      if ($("createdCode")) {
-
+      if (
+        $("createdCode")
+      ) {
         $("createdCode")
           .textContent =
           testCreatedCode;
-
       }
 
       showScreen(
         "createdScreen"
       );
-
     } catch (error) {
-
       console.error(
         error
       );
@@ -1040,15 +917,11 @@ $("saveTestBtn")?.addEventListener(
         "Could not save the test.\n\n" +
         error.message
       );
-
     } finally {
-
       setLoading(
         false
       );
-
     }
-
   }
 );
 
@@ -1060,18 +933,15 @@ $("saveTestBtn")?.addEventListener(
 async function loadTestByCode(
   code
 ) {
-
   const cleanCode =
     code
       .trim()
       .toUpperCase();
 
   if (!cleanCode) {
-
     throw new Error(
       "Please enter a test code."
     );
-
   }
 
   const {
@@ -1095,15 +965,253 @@ async function loadTestByCode(
     !data ||
     data.length === 0
   ) {
-
     throw new Error(
       "Test not found. Please check the code."
     );
-
   }
 
   return data[0];
+}
 
+
+/* =========================================================
+   PDF VIEWER
+   IMPORTANT:
+   ONLY ONE PDF VIEWER IS CREATED.
+   ========================================================= */
+
+function buildSinglePdfViewer(
+  pdfUrl
+) {
+  const pdfCard =
+    document.querySelector(
+      "#examScreen .pdf-card"
+    );
+
+  if (!pdfCard) {
+    return null;
+  }
+
+  /*
+    Completely remove previous viewer UI.
+
+    This prevents the old situation where:
+    viewer #1 appeared at the top
+    and viewer #2 appeared below it.
+  */
+
+  pdfCard.innerHTML =
+    "";
+
+  const header =
+    document.createElement(
+      "div"
+    );
+
+  header.className =
+    "pdf-card-header";
+
+  header.innerHTML = `
+    <h3>
+      Question Paper
+    </h3>
+
+    <span class="pdf-badge">
+      PDF
+    </span>
+  `;
+
+  const viewer =
+    document.createElement(
+      "div"
+    );
+
+  viewer.className =
+    "pdf-viewer-container";
+
+  const loading =
+    document.createElement(
+      "div"
+    );
+
+  loading.className =
+    "pdf-loading-state";
+
+  loading.innerHTML = `
+    <div class="pdf-loader"></div>
+
+    <p>
+      Loading question paper...
+    </p>
+  `;
+
+  const iframe =
+    document.createElement(
+      "iframe"
+    );
+
+  iframe.id =
+    "examPdf";
+
+  iframe.className =
+    "pdf-viewer-frame";
+
+  iframe.title =
+    "Exam Question Paper";
+
+  iframe.setAttribute(
+    "loading",
+    "eager"
+  );
+
+  iframe.setAttribute(
+    "allow",
+    "fullscreen"
+  );
+
+  iframe.setAttribute(
+    "allowfullscreen",
+    ""
+  );
+
+  /*
+    Use the actual PDF URL directly.
+
+    Chrome/Edge desktop:
+    native PDF controls.
+
+    Android:
+    browser decides how the PDF is
+    rendered without creating another
+    artificial viewer.
+  */
+
+  iframe.src =
+    pdfUrl;
+
+  iframe.addEventListener(
+    "load",
+    () => {
+      iframe.classList.add(
+        "loaded"
+      );
+
+      loading.classList.add(
+        "loaded"
+      );
+    }
+  );
+
+  viewer.appendChild(
+    loading
+  );
+
+  viewer.appendChild(
+    iframe
+  );
+
+  const footer =
+    document.createElement(
+      "div"
+    );
+
+  footer.className =
+    "pdf-footer";
+
+  footer.innerHTML = `
+    <span>
+      Question paper
+    </span>
+
+    <a
+      href="${escapeAttribute(pdfUrl)}"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      Open PDF
+    </a>
+  `;
+
+  pdfCard.appendChild(
+    header
+  );
+
+  pdfCard.appendChild(
+    viewer
+  );
+
+  pdfCard.appendChild(
+    footer
+  );
+
+  return iframe;
+}
+
+
+/* =========================================================
+   PDF URL ESCAPE
+   ========================================================= */
+
+function escapeAttribute(
+  value
+) {
+  return String(value)
+    .replace(
+      /&/g,
+      "&amp;"
+    )
+    .replace(
+      /"/g,
+      "&quot;"
+    )
+    .replace(
+      /'/g,
+      "&#39;"
+    )
+    .replace(
+      /</g,
+      "&lt;"
+    )
+    .replace(
+      />/g,
+      "&gt;"
+    );
+}
+
+
+/* =========================================================
+   PDF INITIALIZATION
+   ========================================================= */
+
+async function initializePdfViewer(
+  pdfUrl
+) {
+  if (!pdfUrl) {
+    throw new Error(
+      "Question paper PDF is not available."
+    );
+  }
+
+  currentPdfUrl =
+    pdfUrl;
+
+  /*
+    Force the browser to finish
+    the current screen before rebuilding
+    the PDF area.
+  */
+
+  await new Promise(
+    (resolve) => {
+      requestAnimationFrame(
+        () => resolve()
+      );
+    }
+  );
+
+  buildSinglePdfViewer(
+    pdfUrl
+  );
 }
 
 
@@ -1112,8 +1220,9 @@ async function loadTestByCode(
    ========================================================= */
 
 function ensureCandidateNameInput() {
-
-  if ($("candidateName")) {
+  if (
+    $("candidateName")
+  ) {
     return;
   }
 
@@ -1135,34 +1244,34 @@ function ensureCandidateNameInput() {
     );
 
   wrapper.className =
-    "candidate-bar card";
+    "candidate-card card";
 
   wrapper.innerHTML = `
-
-    <div class="candidate-bar-icon">
-      👤
-    </div>
-
-    <div class="candidate-bar-info">
-
-      <label class="form-label">
-        Candidate Name
-      </label>
+    <div>
+      <h3>
+        Candidate
+      </h3>
 
       <p>
         Enter your name before starting the exam.
       </p>
-
     </div>
 
-    <input
-      id="candidateName"
-      type="text"
-      maxlength="100"
-      autocomplete="name"
-      placeholder="Enter your full name"
-    >
+    <div>
+      <label
+        for="candidateName"
+      >
+        Candidate Name
+      </label>
 
+      <input
+        id="candidateName"
+        type="text"
+        maxlength="100"
+        autocomplete="name"
+        placeholder="Enter your full name"
+      >
+    </div>
   `;
 
   header.parentNode.insertBefore(
@@ -1170,6 +1279,14 @@ function ensureCandidateNameInput() {
     header.nextSibling
   );
 
+  $("candidateName")
+    ?.addEventListener(
+      "input",
+      (event) => {
+        candidateName =
+          event.target.value;
+      }
+    );
 }
 
 
@@ -1180,12 +1297,11 @@ function ensureCandidateNameInput() {
 $("joinBtn")?.addEventListener(
   "click",
   async () => {
-
     const code =
       $("joinCode")
         ?.value
-        ?.trim()
-        ?.toUpperCase();
+        .trim()
+        .toUpperCase();
 
     const status =
       $("joinStatus");
@@ -1195,7 +1311,6 @@ $("joinBtn")?.addEventListener(
     );
 
     if (!code) {
-
       showStatus(
         status,
         "Please enter the test code.",
@@ -1203,7 +1318,16 @@ $("joinBtn")?.addEventListener(
       );
 
       return;
+    }
 
+    if (code.length !== 6) {
+      showStatus(
+        status,
+        "Test code must contain 6 characters.",
+        "error"
+      );
+
+      return;
     }
 
     setLoading(
@@ -1212,22 +1336,24 @@ $("joinBtn")?.addEventListener(
     );
 
     try {
-
-      currentTest =
+      const test =
         await loadTestByCode(
           code
         );
 
+      currentTest =
+        test;
+
       currentQuestionCount =
         Number(
-          currentTest.question_count
+          test.question_count
         );
 
       currentOptions =
         Array.isArray(
-          currentTest.options
+          test.options
         )
-          ? currentTest.options.map(
+          ? test.options.map(
               normalizeOptionCount
             )
           : new Array(
@@ -1236,9 +1362,9 @@ $("joinBtn")?.addEventListener(
 
       currentAnswerKey =
         Array.isArray(
-          currentTest.answer_key
+          test.answer_key
         )
-          ? currentTest.answer_key
+          ? test.answer_key
           : [];
 
       selectedAnswers =
@@ -1250,33 +1376,33 @@ $("joinBtn")?.addEventListener(
         "";
 
       if ($("examName")) {
-
         $("examName")
           .textContent =
-          currentTest.name;
-
+          test.name;
       }
 
       if ($("examInfo")) {
-
         $("examInfo")
           .textContent =
-          `${currentQuestionCount} Questions • Code: ${currentTest.code}`;
-
+          `${currentQuestionCount} Questions • Code: ${test.code}`;
       }
 
       currentPdfUrl =
-        currentTest.pdf_url;
+        test.pdf_url;
 
       ensureCandidateNameInput();
 
-      if ($("candidateName")) {
-
+      if (
+        $("candidateName")
+      ) {
         $("candidateName")
           .value =
           "";
-
       }
+
+      hide(
+        $("resultBox")
+      );
 
       await initializePdfViewer(
         currentPdfUrl
@@ -1287,9 +1413,7 @@ $("joinBtn")?.addEventListener(
       showScreen(
         "examScreen"
       );
-
     } catch (error) {
-
       console.error(
         error
       );
@@ -1299,25 +1423,20 @@ $("joinBtn")?.addEventListener(
         error.message,
         "error"
       );
-
     } finally {
-
       setLoading(
         false
       );
-
     }
-
   }
 );
 
 
 /* =========================================================
-   EXAM OMR
+   OMR
    ========================================================= */
 
 function renderExam() {
-
   const container =
     $("examGrid");
 
@@ -1338,7 +1457,6 @@ function renderExam() {
     i < currentQuestionCount;
     i++
   ) {
-
     const row =
       document.createElement(
         "div"
@@ -1362,121 +1480,134 @@ function renderExam() {
       number
     );
 
+    const optionCount =
+      currentOptions[i] ||
+      4;
+
     const labels =
       getOptionLabels(
-        currentOptions[i] ||
-        4
+        optionCount
       );
 
-    for (
-      const labelValue
-      of labels
-    ) {
-
-      const label =
-        document.createElement(
-          "label"
-        );
-
-      label.className =
-        "answer-option";
-
-      const input =
-        document.createElement(
-          "input"
-        );
-
-      input.type =
-        "radio";
-
-      input.name =
-        `question-${i}`;
-
-      input.value =
-        labelValue;
-
-      input.addEventListener(
-        "change",
-        () => {
-
-          selectedAnswers[i] =
-            input.value;
-
-          updateSelectedOption(
-            i,
-            input.value
+    labels.forEach(
+      (labelValue) => {
+        const label =
+          document.createElement(
+            "label"
           );
 
-          updateProgress();
+        label.className =
+          "answer-option";
 
-        }
-      );
+        const input =
+          document.createElement(
+            "input"
+          );
 
-      const text =
-        document.createElement(
-          "span"
+        input.type =
+          "radio";
+
+        input.name =
+          `question-${i}`;
+
+        input.value =
+          labelValue;
+
+        input.dataset.question =
+          String(i);
+
+        input.addEventListener(
+          "change",
+          () => {
+            selectedAnswers[i] =
+              input.value;
+
+            updateSelectedOption(
+              i,
+              input.value
+            );
+
+            updateProgress();
+          }
         );
 
-      text.textContent =
-        labelValue;
+        const text =
+          document.createElement(
+            "span"
+          );
 
-      label.append(
-        input,
-        text
-      );
+        text.textContent =
+          labelValue;
 
-      row.appendChild(
-        label
-      );
+        label.appendChild(
+          input
+        );
 
-    }
+        label.appendChild(
+          text
+        );
+
+        row.appendChild(
+          label
+        );
+      }
+    );
 
     container.appendChild(
       row
     );
-
   }
 
   updateProgress();
-
 }
 
+
+/* =========================================================
+   SELECTED OPTION
+   ========================================================= */
 
 function updateSelectedOption(
   questionIndex,
   selectedValue
 ) {
-
-  document
-    .querySelectorAll(
+  const inputs =
+    document.querySelectorAll(
       `input[name="question-${questionIndex}"]`
-    )
-    .forEach(
-      (input) => {
-
-        const label =
-          input.closest(
-            ".answer-option"
-          );
-
-        if (label) {
-
-          label.classList.toggle(
-            "selected",
-            input.value ===
-              selectedValue
-          );
-
-        }
-
-      }
     );
 
+  inputs.forEach(
+    (input) => {
+      const label =
+        input.closest(
+          ".answer-option"
+        );
+
+      if (!label) {
+        return;
+      }
+
+      if (
+        input.value ===
+        selectedValue
+      ) {
+        label.classList.add(
+          "selected"
+        );
+      } else {
+        label.classList.remove(
+          "selected"
+        );
+      }
+    }
+  );
 }
 
 
-function updateProgress() {
+/* =========================================================
+   PROGRESS
+   ========================================================= */
 
+function updateProgress() {
   const answered =
     selectedAnswers.filter(
       Boolean
@@ -1485,104 +1616,67 @@ function updateProgress() {
   const total =
     currentQuestionCount;
 
-  if ($("questionProgress")) {
+  const progress =
+    $("questionProgress");
 
-    $("questionProgress")
-      .textContent =
+  if (progress) {
+    progress.textContent =
       `${answered} / ${total}`;
-
   }
-
-  const fill =
-    document.querySelector(
-      ".progress-fill"
-    );
-
-  if (fill) {
-
-    fill.style.width =
-      `${
-        total
-          ? (
-              answered /
-              total
-            ) * 100
-          : 0
-      }%`;
-
-  }
-
-  const strong =
-    document.querySelector(
-      ".omr-progress strong"
-    );
-
-  if (strong) {
-
-    strong.textContent =
-      `${answered}/${total}`;
-
-  }
-
 }
 
 
 /* =========================================================
-   RESET EXAM
+   SUBMIT EXAM
    ========================================================= */
 
-$("resetExamBtn")?.addEventListener(
+$("submitExamBtn")?.addEventListener(
   "click",
-  () => {
-
-    if (
-      !confirm(
-        "Delete all selected answers?"
-      )
-    ) {
-
+  async () => {
+    if (!currentTest) {
       return;
-
     }
 
-    selectedAnswers =
-      new Array(
-        currentQuestionCount
-      ).fill("");
+    const unanswered =
+      selectedAnswers.filter(
+        (answer) =>
+          !answer
+      ).length;
 
-    document
-      .querySelectorAll(
-        ".answer-option input"
-      )
-      .forEach(
-        (input) => {
+    if (
+      unanswered > 0
+    ) {
+      const proceed =
+        confirm(
+          `${unanswered} question(s) are unanswered.\n\nSubmit anyway?`
+        );
 
-          input.checked =
-            false;
+      if (!proceed) {
+        return;
+      }
+    }
 
-        }
+    const name =
+      $("candidateName")
+        ?.value
+        ?.trim() ||
+      candidateName.trim();
+
+    if (!name) {
+      alert(
+        "Please enter your name before submitting."
       );
 
-    document
-      .querySelectorAll(
-        ".answer-option.selected"
-      )
-      .forEach(
-        (label) => {
+      $("candidateName")
+        ?.focus();
 
-          label.classList.remove(
-            "selected"
-          );
+      return;
+    }
 
-        }
-      );
+    candidateName =
+      name;
 
-    hide(
-      $("resultBox")
-    );
-
-    updateProgress();
-
+    await calculateAndSaveResult();
   }
 );
 
@@ -1591,23 +1685,22 @@ $("resetExamBtn")?.addEventListener(
    CALCULATE RESULT
    ========================================================= */
 
-function calculateResult() {
-
+async function calculateAndSaveResult() {
   const answerKey =
     Array.isArray(
-      currentTest?.answer_key
+      currentTest.answer_key
     )
       ? currentTest.answer_key
       : [];
 
   const correctMark =
     Number(
-      currentTest?.correct_mark
+      currentTest.correct_mark
     ) || 0;
 
   const wrongMark =
     Number(
-      currentTest?.wrong_mark
+      currentTest.wrong_mark
     ) || 0;
 
   let correct = 0;
@@ -1621,2001 +1714,26 @@ function calculateResult() {
     i < currentQuestionCount;
     i++
   ) {
-
     const selected =
       selectedAnswers[i];
-
-    if (!selected) {
-
-      unanswered++;
-
-      continue;
-
-    }
-
-    if (
-      selected ===
-      answerKey[i]
-    ) {
-
-      correct++;
-
-    } else {
-
-      wrong++;
-
-    }
-
-  }
-
-  const score =
-    (
-      correct *
-      correctMark
-    ) -
-    (
-      wrong *
-      Math.abs(
-        wrongMark
-      )
-    );
-
-  const totalMarks =
-    currentQuestionCount *
-    correctMark;
-
-  const percentage =
-    totalMarks > 0
-      ? (
-          score /
-          totalMarks
-        ) * 100
-      : 0;
-
-  return {
-
-    candidateName,
-
-    testCode:
-      currentTest.code,
-
-    correct,
-
-    wrong,
-
-    unanswered,
-
-    score,
-
-    totalMarks,
-
-    percentage,
-
-    answers:
-      selectedAnswers.slice()
-
-  };
-
-}
-
-
-/* =========================================================
-   SAVE RESULT
-   ========================================================= */
-
-async function saveExamResult(
-  result
-) {
-
-  const payload = {
-
-    test_code:
-      result.testCode,
-
-    candidate_name:
-      result.candidateName,
-
-    answers:
-      result.answers,
-
-    correct_count:
-      result.correct,
-
-    wrong_count:
-      result.wrong,
-
-    unanswered_count:
-      result.unanswered,
-
-    score:
-      result.score,
-
-    total_marks:
-      result.totalMarks,
-
-    percentage:
-      result.percentage,
-
-    submitted_at:
-      new Date().toISOString()
-
-  };
-
-  const {
-    error
-  } =
-    await supabaseClient
-      .from(
-        "exam_results"
-      )
-      .insert(
-        payload
-      );
-
-  if (error) {
-    throw error;
-  }
-
-}
-
-
-/* =========================================================
-   RESULT UI
-   ========================================================= */
-
-function renderResult(
-  result
-) {
-
-  const box =
-    $("resultBox");
-
-  if (!box) {
-    return;
-  }
-
-  box.innerHTML = `
-
-    <div class="result-title">
-      Result
-    </div>
-
-    <p>
-      ${escapeHtml(
-        result.candidateName
-      )}
-      •
-      ${escapeHtml(
-        currentTest.name
-      )}
-    </p>
-
-    <div class="result-stats">
-
-      <div class="result-stat">
-        <span>
-          Correct
-        </span>
-
-        <strong>
-          ${result.correct}
-        </strong>
-      </div>
-
-      <div class="result-stat">
-        <span>
-          Wrong
-        </span>
-
-        <strong>
-          ${result.wrong}
-        </strong>
-      </div>
-
-      <div class="result-stat">
-        <span>
-          Unanswered
-        </span>
-
-        <strong>
-          ${result.unanswered}
-        </strong>
-      </div>
-
-      <div class="result-stat">
-        <span>
-          Percentage
-        </span>
-
-        <strong>
-          ${result.percentage.toFixed(2)}%
-        </strong>
-      </div>
-
-    </div>
-
-    <div class="score-display">
-
-      <span>
-        Score
-      </span>
-
-      <strong>
-        ${formatNumber(
-          result.score
-        )}
-        /
-        ${formatNumber(
-          result.totalMarks
-        )}
-      </strong>
-
-    </div>
-
-  `;
-
-  show(box);
-
-  box.scrollIntoView({
-    behavior:
-      "smooth",
-
-    block:
-      "nearest"
-  });
-
-}
-
-
-/* =========================================================
-   SUBMIT EXAM
-   ========================================================= */
-
-$("submitExamBtn")?.addEventListener(
-  "click",
-  async () => {
-
-    if (!currentTest) {
-      return;
-    }
-
-    const input =
-      $("candidateName");
-
-    candidateName =
-      input?.value
-        ?.trim() ||
-      "";
-
-    if (!candidateName) {
-
-      alert(
-        "Please enter your name before submitting the exam."
-      );
-
-      input?.focus();
-
-      return;
-
-    }
-
-    const unanswered =
-      selectedAnswers.filter(
-        (answer) =>
-          !answer
-      ).length;
-
-    if (
-      unanswered > 0
-    ) {
-
-      const proceed =
-        confirm(
-          `${unanswered} question(s) are unanswered.\n\nSubmit anyway?`
-        );
-
-      if (!proceed) {
-        return;
-      }
-
-    }
-
-    setLoading(
-      true,
-      "Checking your answers..."
-    );
-
-    const result =
-      calculateResult();
-
-    try {
-
-      await saveExamResult(
-        result
-      );
-
-    } catch (error) {
-
-      console.error(
-        error
-      );
-
-      alert(
-        "Your result was calculated, but could not be saved.\n\n" +
-        error.message
-      );
-
-    }
-
-    renderResult(
-      result
-    );
-
-    setLoading(
-      false
-    );
-
-  }
-);
-/* =========================================================
-   PDF VIEWER — PART 2
-   ========================================================= */
-
-
-/*
-  IMPORTANT
-
-  We are no longer rendering the PDF ourselves with canvas.
-
-  Instead, the official Mozilla PDF.js viewer is loaded
-  inside an iframe.
-
-  This gives us:
-
-  • Previous / Next page
-  • Zoom in / out
-  • Mobile touch support
-  • Android PDF rendering
-  • Page thumbnails
-  • Search
-  • Full-screen style PDF controls
-*/
-
-
-/* =========================================================
-   PDF VIEWER URL
-   ========================================================= */
-
-function buildPdfViewerUrl(
-  pdfUrl
-) {
-
-  if (!pdfUrl) {
-    return "";
-  }
-
-  const encodedUrl =
-    encodeURIComponent(
-      pdfUrl
-    );
-
-  return (
-    PDFJS_VIEWER_URL +
-    `?file=${encodedUrl}`
-  );
-
-}
-
-
-/* =========================================================
-   CREATE MOBILE PDF VIEWER
-   ========================================================= */
-
-function createPdfViewer() {
-
-  const pdfCard =
-    document.querySelector(
-      ".pdf-card"
-    );
-
-  if (!pdfCard) {
-    return null;
-  }
-
-
-  /*
-    If our viewer already exists,
-    simply return it.
-  */
-
-  let viewer =
-    $("mobilePdfViewer");
-
-  if (viewer) {
-    return viewer;
-  }
-
-
-  /*
-    Hide the old iframe.
-
-    We keep the original element in
-    the DOM so existing HTML remains
-    compatible.
-  */
-
-  const oldIframe =
-    $("examPdf");
-
-  if (oldIframe) {
-
-    oldIframe.style.display =
-      "none";
-
-  }
-
-
-  /*
-    Create the new viewer.
-  */
-
-  viewer =
-    document.createElement(
-      "div"
-    );
-
-  viewer.id =
-    "mobilePdfViewer";
-
-  viewer.className =
-    "mobile-pdf-viewer";
-
-
-  viewer.innerHTML = `
-
-    <div
-      class="pdf-viewer-topbar"
-    >
-
-      <div
-        class="pdf-viewer-title"
-      >
-
-        <span
-          class="pdf-viewer-icon"
-        >
-          PDF
-        </span>
-
-        <span>
-          Question Paper
-        </span>
-
-      </div>
-
-
-      <button
-        type="button"
-        id="pdfFullscreenBtn"
-        class="pdf-viewer-action"
-        title="Open PDF viewer"
-      >
-        ⛶
-      </button>
-
-    </div>
-
-
-    <div
-      class="pdf-viewer-frame-wrap"
-    >
-
-      <iframe
-        id="pdfViewerFrame"
-        title="Question Paper PDF"
-        class="pdf-viewer-frame"
-        allowfullscreen
-        loading="eager"
-      >
-      </iframe>
-
-    </div>
-
-
-    <div
-      class="pdf-viewer-bottom"
-    >
-
-      <span>
-        Use PDF controls to zoom and change pages.
-      </span>
-
-      <a
-        id="pdfExternalLink"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        Open PDF
-      </a>
-
-    </div>
-
-  `;
-
-
-  /*
-    Insert our viewer immediately before
-    the original iframe.
-  */
-
-  if (oldIframe) {
-
-    oldIframe.parentNode.insertBefore(
-      viewer,
-      oldIframe
-    );
-
-  } else {
-
-    pdfCard.appendChild(
-      viewer
-    );
-
-  }
-
-
-  attachPdfViewerControls();
-
-  return viewer;
-
-}
-
-
-/* =========================================================
-   PDF VIEWER CONTROLS
-   ========================================================= */
-
-function attachPdfViewerControls() {
-
-  const fullscreenButton =
-    $("pdfFullscreenBtn");
-
-  if (
-    fullscreenButton &&
-    !fullscreenButton.dataset.bound
-  ) {
-
-    fullscreenButton.dataset.bound =
-      "true";
-
-
-    fullscreenButton.addEventListener(
-      "click",
-      () => {
-
-        const frame =
-          $("pdfViewerFrame");
-
-        if (!frame) {
-          return;
-        }
-
-
-        /*
-          On Android browsers, opening the
-          PDF.js viewer in a new browser
-          context gives the user a reliable
-          full-screen style PDF experience.
-
-          The existing exam page remains
-          unchanged.
-        */
-
-        if (currentPdfUrl) {
-
-          const viewerUrl =
-            buildPdfViewerUrl(
-              currentPdfUrl
-            );
-
-          window.open(
-            viewerUrl,
-            "_blank",
-            "noopener,noreferrer"
-          );
-
-        }
-
-      }
-    );
-
-  }
-
-
-  const externalLink =
-    $("pdfExternalLink");
-
-  if (externalLink) {
-
-    externalLink.addEventListener(
-      "click",
-      () => {
-
-        if (currentPdfUrl) {
-
-          externalLink.href =
-            currentPdfUrl;
-
-        }
-
-      }
-    );
-
-  }
-
-}
-
-
-/* =========================================================
-   LOAD PDF INTO VIEWER
-   ========================================================= */
-
-function loadPdfIntoViewer(
-  pdfUrl
-) {
-
-  if (!pdfUrl) {
-
-    console.error(
-      "No PDF URL supplied."
-    );
-
-    return;
-
-  }
-
-
-  const viewer =
-    createPdfViewer();
-
-  if (!viewer) {
-
-    console.error(
-      "Could not create PDF viewer."
-    );
-
-    return;
-
-  }
-
-
-  const frame =
-    $("pdfViewerFrame");
-
-  if (!frame) {
-
-    console.error(
-      "PDF viewer iframe not found."
-    );
-
-    return;
-
-  }
-
-
-  /*
-    Build official PDF.js viewer URL.
-
-    Example:
-
-    https://mozilla.github.io/pdf.js/web/viewer.html
-      ?file=https%3A%2F%2F...
-
-  */
-
-  const viewerUrl =
-    buildPdfViewerUrl(
-      pdfUrl
-    );
-
-
-  /*
-    Avoid reloading the exact same PDF
-    unnecessarily.
-  */
-
-  if (
-    frame.dataset.pdfUrl ===
-    pdfUrl
-  ) {
-
-    return;
-
-  }
-
-
-  frame.dataset.pdfUrl =
-    pdfUrl;
-
-
-  /*
-    Set source.
-
-    The PDF.js viewer itself handles
-    page navigation and zoom.
-  */
-
-  frame.src =
-    viewerUrl;
-
-
-  /*
-    Also update the direct PDF link.
-  */
-
-  const externalLink =
-    $("pdfExternalLink");
-
-  if (externalLink) {
-
-    externalLink.href =
-      pdfUrl;
-
-  }
-
-}
-
-
-/* =========================================================
-   PDF VIEWER INITIALIZATION
-   ========================================================= */
-
-async function initializePdfViewer(
-  pdfUrl
-) {
-
-  currentPdfUrl =
-    pdfUrl;
-
-  currentPdfPage =
-    1;
-
-  currentPdfScale =
-    1;
-
-
-  if (!pdfUrl) {
-
-    throw new Error(
-      "Question paper PDF URL is missing."
-    );
-
-  }
-
-
-  /*
-    Create viewer and load PDF.
-  */
-
-  loadPdfIntoViewer(
-    pdfUrl
-  );
-
-
-  /*
-    Give the iframe a moment to start loading.
-  */
-
-  await new Promise(
-    (resolve) => {
-
-      setTimeout(
-        resolve,
-        150
-      );
-
-    }
-  );
-
-}
-
-
-/* =========================================================
-   PDF VIEWER REFRESH
-   ========================================================= */
-
-function refreshPdfViewer() {
-
-  const frame =
-    $("pdfViewerFrame");
-
-  if (!frame) {
-    return;
-  }
-
-  if (!currentPdfUrl) {
-    return;
-  }
-
-
-  /*
-    Force a fresh PDF.js viewer
-    instance.
-
-    This is useful when the same
-    exam is opened again.
-  */
-
-  frame.dataset.pdfUrl =
-    "";
-
-  frame.src =
-    buildPdfViewerUrl(
-      currentPdfUrl
-    );
-
-}
-
-
-/* =========================================================
-   PDF VIEWER CLEANUP
-   ========================================================= */
-
-function destroyPdfViewer() {
-
-  const frame =
-    $("pdfViewerFrame");
-
-  if (frame) {
-
-    frame.src =
-      "about:blank";
-
-    frame.dataset.pdfUrl =
-      "";
-
-  }
-
-  currentPdfUrl =
-    "";
-
-  currentPdfDocument =
-    null;
-
-  currentPdfPage =
-    1;
-
-  currentPdfScale =
-    1;
-
-}
-
-
-/* =========================================================
-   PDF FULLSCREEN FALLBACK
-   ========================================================= */
-
-function openPdfDirectly() {
-
-  if (!currentPdfUrl) {
-
-    alert(
-      "Question paper PDF is not available."
-    );
-
-    return;
-
-  }
-
-
-  /*
-    Try PDF.js first.
-  */
-
-  const viewerUrl =
-    buildPdfViewerUrl(
-      currentPdfUrl
-    );
-
-
-  const newWindow =
-    window.open(
-      viewerUrl,
-      "_blank"
-    );
-
-
-  /*
-    If browser blocks popup,
-    use direct PDF URL.
-  */
-
-  if (!newWindow) {
-
-    window.location.href =
-      currentPdfUrl;
-
-  }
-
-}
-
-
-/* =========================================================
-   PDF VIEWER MESSAGE LISTENER
-   =========================================================
-
-   PDF.js is running inside an iframe.
-
-   We don't control its internal DOM because
-   it belongs to another document/origin.
-
-   This listener is intentionally lightweight
-   and does NOT modify the viewer.
-
-   ========================================================= */
-
-window.addEventListener(
-  "message",
-  (event) => {
-
-    if (
-      !event ||
-      !event.data
-    ) {
-
-      return;
-
-    }
-
-
-    /*
-      Keep this listener defensive.
-
-      Different PDF.js versions may send
-      different messages.
-    */
-
-    if (
-      typeof event.data !==
-      "object"
-    ) {
-
-      return;
-
-    }
-
-  }
-);
-
-
-/* =========================================================
-   PDF VIEWER ERROR FALLBACK
-   ========================================================= */
-
-function showPdfFallback(
-  message
-) {
-
-  const viewer =
-    $("mobilePdfViewer");
-
-  if (!viewer) {
-    return;
-  }
-
-
-  const wrap =
-    viewer.querySelector(
-      ".pdf-viewer-frame-wrap"
-    );
-
-  if (!wrap) {
-    return;
-  }
-
-
-  wrap.innerHTML = `
-
-    <div
-      class="pdf-fallback"
-    >
-
-      <div
-        class="pdf-fallback-icon"
-      >
-        PDF
-      </div>
-
-      <h3>
-        Question Paper
-      </h3>
-
-      <p>
-        ${escapeHtml(
-          message ||
-          "The PDF preview could not be loaded."
-        )}
-      </p>
-
-      <button
-        type="button"
-        id="pdfFallbackOpenBtn"
-        class="primary-btn"
-      >
-        Open Question Paper
-      </button>
-
-    </div>
-
-  `;
-
-
-  $("pdfFallbackOpenBtn")
-    ?.addEventListener(
-      "click",
-      openPdfDirectly
-    );
-
-}
-
-
-/* =========================================================
-   PDF FRAME LOAD EVENT
-   ========================================================= */
-
-function bindPdfFrameEvents() {
-
-  const frame =
-    $("pdfViewerFrame");
-
-  if (!frame) {
-    return;
-  }
-
-
-  if (
-    frame.dataset.eventsBound ===
-    "true"
-  ) {
-
-    return;
-
-  }
-
-
-  frame.dataset.eventsBound =
-    "true";
-
-
-  frame.addEventListener(
-    "load",
-    () => {
-
-      /*
-        The viewer has loaded.
-
-        We deliberately don't try to
-        access its internal DOM because
-        cross-origin iframe restrictions
-        would make that unreliable.
-      */
-
-      console.log(
-        "PDF.js viewer loaded."
-      );
-
-    }
-  );
-
-
-  frame.addEventListener(
-    "error",
-    () => {
-
-      showPdfFallback(
-        "The PDF viewer could not be loaded on this device."
-      );
-
-    }
-  );
-
-}
-
-
-/* =========================================================
-   EXAM PDF SETUP
-   ========================================================= */
-
-function setupExamPdf() {
-
-  const viewer =
-    createPdfViewer();
-
-  if (!viewer) {
-    return;
-  }
-
-  bindPdfFrameEvents();
-
-}
-
-
-/* =========================================================
-   CANDIDATE NAME
-   ========================================================= */
-
-function ensureCandidateNameInput() {
-
-  if ($("candidateName")) {
-    return;
-  }
-
-  const examScreen =
-    $("examScreen");
-
-  if (!examScreen) {
-    return;
-  }
-
-  const header =
-    examScreen.querySelector(
-      ".exam-header"
-    );
-
-  if (!header) {
-    return;
-  }
-
-  const wrapper =
-    document.createElement(
-      "div"
-    );
-
-  wrapper.className =
-    "candidate-bar card";
-
-  wrapper.innerHTML = `
-
-    <div
-      class="candidate-bar-icon"
-    >
-      👤
-    </div>
-
-    <div
-      class="candidate-bar-info"
-    >
-
-      <label
-        class="form-label"
-      >
-        Candidate Name
-      </label>
-
-      <p>
-        Enter your name before submitting the exam.
-      </p>
-
-    </div>
-
-    <input
-      id="candidateName"
-      type="text"
-      maxlength="100"
-      autocomplete="name"
-      placeholder="Enter your full name"
-    >
-
-  `;
-
-
-  header.parentNode.insertBefore(
-    wrapper,
-    header.nextSibling
-  );
-
-}
-
-
-/* =========================================================
-   JOIN TEST — PDF VIEWER VERSION
-   ========================================================= */
-
-async function openExamWithTest(
-  test
-) {
-
-  currentTest =
-    test;
-
-
-  currentQuestionCount =
-    Number(
-      test.question_count
-    );
-
-
-  currentOptions =
-    Array.isArray(
-      test.options
-    )
-      ? test.options.map(
-          normalizeOptionCount
-        )
-      : new Array(
-          currentQuestionCount
-        ).fill(4);
-
-
-  currentAnswerKey =
-    Array.isArray(
-      test.answer_key
-    )
-      ? test.answer_key
-      : [];
-
-
-  selectedAnswers =
-    new Array(
-      currentQuestionCount
-    ).fill("");
-
-
-  candidateName =
-    "";
-
-
-  if ($("examName")) {
-
-    $("examName")
-      .textContent =
-      test.name;
-
-  }
-
-
-  if ($("examInfo")) {
-
-    $("examInfo")
-      .textContent =
-      `${currentQuestionCount} Questions • Code: ${test.code}`;
-
-  }
-
-
-  /*
-    Make sure candidate field exists.
-  */
-
-  ensureCandidateNameInput();
-
-
-  if ($("candidateName")) {
-
-    $("candidateName")
-      .value =
-      "";
-
-  }
-
-
-  /*
-    IMPORTANT:
-
-    Load PDF into the new PDF.js
-    iframe viewer.
-
-    We do NOT use:
-
-      iframe.src = pdf_url
-
-    because Android may open the
-    browser's external PDF handler.
-
-    Instead:
-
-      pdf_url
-        ↓
-      Mozilla PDF.js viewer
-        ↓
-      iframe
-  */
-
-  await initializePdfViewer(
-    test.pdf_url
-  );
-
-
-  setupExamPdf();
-
-
-  renderExam();
-
-
-  showScreen(
-    "examScreen"
-  );
-
-}
-
-
-/* =========================================================
-   JOIN BUTTON
-   ========================================================= */
-
-$("joinBtn")?.addEventListener(
-  "click",
-  async () => {
-
-    const code =
-      $("joinCode")
-        ?.value
-        ?.trim()
-        ?.toUpperCase();
-
-
-    const status =
-      $("joinStatus");
-
-
-    hideStatus(
-      status
-    );
-
-
-    if (!code) {
-
-      showStatus(
-        status,
-        "Please enter the test code.",
-        "error"
-      );
-
-      return;
-
-    }
-
-
-    setLoading(
-      true,
-      "Loading test..."
-    );
-
-
-    try {
-
-      const test =
-        await loadTestByCode(
-          code
-        );
-
-
-      await openExamWithTest(
-        test
-      );
-
-
-    } catch (error) {
-
-      console.error(
-        error
-      );
-
-
-      showStatus(
-        status,
-        error.message ||
-          "Could not load the test.",
-        "error"
-      );
-
-
-    } finally {
-
-      setLoading(
-        false
-      );
-
-    }
-
-  }
-);
-
-
-/* =========================================================
-   EXAM EXIT
-   ========================================================= */
-
-$("exitExamBtn")?.addEventListener(
-  "click",
-  () => {
-
-    const answered =
-      selectedAnswers.filter(
-        Boolean
-      ).length;
-
-
-    if (
-      answered > 0
-    ) {
-
-      const confirmed =
-        confirm(
-          "You have selected some answers.\n\nExit the exam?"
-        );
-
-
-      if (!confirmed) {
-        return;
-      }
-
-    }
-
-
-    destroyPdfViewer();
-
-
-    currentTest =
-      null;
-
-    currentOptions =
-      [];
-
-    currentAnswerKey =
-      [];
-
-    selectedAnswers =
-      [];
-
-    candidateName =
-      "";
-
-
-    showScreen(
-      "homeScreen"
-    );
-
-  }
-);
-
-
-/* =========================================================
-   PDF VIEWER MOBILE RESIZE
-   ========================================================= */
-
-let pdfResizeTimeout =
-  null;
-
-
-window.addEventListener(
-  "resize",
-  () => {
-
-    clearTimeout(
-      pdfResizeTimeout
-    );
-
-
-    pdfResizeTimeout =
-      setTimeout(
-        () => {
-
-          const frame =
-            $("pdfViewerFrame");
-
-          if (!frame) {
-            return;
-          }
-
-          /*
-            Don't reload the PDF on resize.
-
-            PDF.js internally handles its
-            own responsive layout.
-          */
-
-        },
-        250
-      );
-
-  }
-);
-
-
-/* =========================================================
-   PDF VIEWER VISIBILITY
-   ========================================================= */
-
-document.addEventListener(
-  "visibilitychange",
-  () => {
-
-    if (
-      document.visibilityState !==
-      "visible"
-    ) {
-
-      return;
-
-    }
-
-
-    /*
-      Don't reload the viewer when
-      returning to the tab/app.
-
-      This prevents losing the current
-      PDF page unnecessarily.
-    */
-
-  }
-);
-
-
-/* =========================================================
-   END OF PART 2
-   ========================================================= */
-   /* =========================================================
-   EXAM OMR — PART 3
-   ========================================================= */
-
-
-/* =========================================================
-   OMR RENDERING
-   ========================================================= */
-
-function renderExam() {
-
-  const container =
-    $("examGrid");
-
-  if (!container) {
-    return;
-  }
-
-  container.innerHTML =
-    "";
-
-  selectedAnswers =
-    new Array(
-      currentQuestionCount
-    ).fill("");
-
-  for (
-    let i = 0;
-    i < currentQuestionCount;
-    i++
-  ) {
-
-    const row =
-      document.createElement(
-        "div"
-      );
-
-    row.className =
-      "exam-question";
-
-
-    /* -------------------------
-       QUESTION NUMBER
-       ------------------------- */
-
-    const number =
-      document.createElement(
-        "div"
-      );
-
-    number.className =
-      "question-number";
-
-    number.textContent =
-      i + 1;
-
-    row.appendChild(
-      number
-    );
-
-
-    /* -------------------------
-       OPTIONS
-       ------------------------- */
-
-    const optionCount =
-      currentOptions[i] || 4;
-
-    const labels =
-      getOptionLabels(
-        optionCount
-      );
-
-
-    for (
-      let j = 0;
-      j < labels.length;
-      j++
-    ) {
-
-      const value =
-        labels[j];
-
-
-      const label =
-        document.createElement(
-          "label"
-        );
-
-      label.className =
-        "answer-option";
-
-
-      const input =
-        document.createElement(
-          "input"
-        );
-
-      input.type =
-        "radio";
-
-      input.name =
-        `question-${i}`;
-
-      input.value =
-        value;
-
-      input.dataset.question =
-        String(i);
-
-
-      input.addEventListener(
-        "change",
-        () => {
-
-          selectedAnswers[i] =
-            input.value;
-
-
-          updateSelectedOption(
-            i,
-            input.value
-          );
-
-
-          updateProgress();
-
-        }
-      );
-
-
-      const text =
-        document.createElement(
-          "span"
-        );
-
-      text.textContent =
-        value;
-
-
-      label.appendChild(
-        input
-      );
-
-      label.appendChild(
-        text
-      );
-
-
-      row.appendChild(
-        label
-      );
-
-    }
-
-
-    container.appendChild(
-      row
-    );
-
-  }
-
-
-  updateProgress();
-
-}
-
-
-/* =========================================================
-   SELECTED OPTION UI
-   ========================================================= */
-
-function updateSelectedOption(
-  questionIndex,
-  selectedValue
-) {
-
-  const inputs =
-    document.querySelectorAll(
-      `input[name="question-${questionIndex}"]`
-    );
-
-
-  inputs.forEach(
-    (input) => {
-
-      const label =
-        input.closest(
-          ".answer-option"
-        );
-
-
-      if (!label) {
-        return;
-      }
-
-
-      if (
-        input.value ===
-        selectedValue
-      ) {
-
-        label.classList.add(
-          "selected"
-        );
-
-      } else {
-
-        label.classList.remove(
-          "selected"
-        );
-
-      }
-
-    }
-  );
-
-}
-
-
-/* =========================================================
-   PROGRESS
-   ========================================================= */
-
-function updateProgress() {
-
-  const answered =
-    selectedAnswers.filter(
-      Boolean
-    ).length;
-
-
-  const total =
-    currentQuestionCount;
-
-
-  const progress =
-    $("questionProgress");
-
-
-  if (progress) {
-
-    progress.textContent =
-      `${answered} / ${total}`;
-
-  }
-
-
-  /*
-    Optional progress bar support.
-    If the enhanced HTML/CSS contains
-    one, it will automatically update.
-  */
-
-  const progressFill =
-    document.querySelector(
-      ".progress-fill"
-    );
-
-
-  if (progressFill) {
-
-    const percentage =
-      total > 0
-        ? (
-            answered /
-            total
-          ) * 100
-        : 0;
-
-
-    progressFill.style.width =
-      `${percentage}%`;
-
-  }
-
-
-  const progressNumber =
-    document.querySelector(
-      ".omr-progress strong"
-    );
-
-
-  if (progressNumber) {
-
-    progressNumber.textContent =
-      `${answered}/${total}`;
-
-  }
-
-}
-
-
-/* =========================================================
-   RESET ANSWERS
-   ========================================================= */
-
-function resetExamAnswers() {
-
-  selectedAnswers =
-    new Array(
-      currentQuestionCount
-    ).fill("");
-
-
-  document
-    .querySelectorAll(
-      ".answer-option input"
-    )
-    .forEach(
-      (input) => {
-
-        input.checked =
-          false;
-
-      }
-    );
-
-
-  document
-    .querySelectorAll(
-      ".answer-option.selected"
-    )
-    .forEach(
-      (label) => {
-
-        label.classList.remove(
-          "selected"
-        );
-
-      }
-    );
-
-
-  hide(
-    $("resultBox")
-  );
-
-
-  updateProgress();
-
-}
-
-
-/* =========================================================
-   RESET BUTTON
-   ========================================================= */
-
-$("resetExamBtn")?.addEventListener(
-  "click",
-  () => {
-
-    const answered =
-      selectedAnswers.filter(
-        Boolean
-      ).length;
-
-
-    if (
-      answered === 0
-    ) {
-
-      return;
-
-    }
-
-
-    const confirmed =
-      confirm(
-        "Delete all selected answers?"
-      );
-
-
-    if (!confirmed) {
-      return;
-    }
-
-
-    resetExamAnswers();
-
-  }
-);
-
-
-/* =========================================================
-   RESULT CALCULATION
-   ========================================================= */
-
-function calculateResult() {
-
-  const answerKey =
-    Array.isArray(
-      currentTest?.answer_key
-    )
-      ? currentTest.answer_key
-      : [];
-
-
-  const correctMark =
-    Number(
-      currentTest?.correct_mark
-    ) || 0;
-
-
-  const wrongMark =
-    Number(
-      currentTest?.wrong_mark
-    ) || 0;
-
-
-  let correct =
-    0;
-
-
-  let wrong =
-    0;
-
-
-  let unanswered =
-    0;
-
-
-  for (
-    let i = 0;
-    i < currentQuestionCount;
-    i++
-  ) {
-
-    const selected =
-      selectedAnswers[i];
-
 
     const correctAnswer =
       answerKey[i];
 
-
     if (!selected) {
-
       unanswered++;
-
       continue;
-
     }
-
 
     if (
       selected ===
       correctAnswer
     ) {
-
       correct++;
-
     } else {
-
       wrong++;
-
     }
-
   }
-
 
   const score =
     (
@@ -3629,118 +1747,141 @@ function calculateResult() {
       )
     );
 
-
   const totalMarks =
     currentQuestionCount *
     correctMark;
-
 
   const percentage =
     totalMarks > 0
       ? (
           score /
           totalMarks
-        ) * 100
+        ) *
+        100
       : 0;
 
-
-  return {
-
-    candidateName,
-
-    testCode:
+  const result = {
+    test_code:
       currentTest.code,
 
-    correct,
-
-    wrong,
-
-    unanswered,
-
-    score,
-
-    totalMarks,
-
-    percentage,
+    candidate_name:
+      candidateName,
 
     answers:
-      selectedAnswers.slice()
+      selectedAnswers,
 
+    correct_count:
+      correct,
+
+    wrong_count:
+      wrong,
+
+    unanswered_count:
+      unanswered,
+
+    score:
+      score,
+
+    total_marks:
+      totalMarks,
+
+    percentage:
+      percentage
   };
 
+  currentResult =
+    result;
+
+  renderResult(
+    result
+  );
+
+  await saveResult(
+    result
+  );
 }
 
 
 /* =========================================================
-   SAVE EXAM RESULT
+   SAVE RESULT TO SUPABASE
    ========================================================= */
 
-async function saveExamResult(
+async function saveResult(
   result
 ) {
-
-  if (!result) {
-
-    throw new Error(
-      "Result data is missing."
+  const saveStatus =
+    document.getElementById(
+      "resultSaveStatus"
     );
 
+  if (saveStatus) {
+    saveStatus.className =
+      "result-save-status";
+
+    saveStatus.textContent =
+      "Saving result...";
   }
 
+  try {
+    const {
+      error
+    } =
+      await supabaseClient
+        .from("results")
+        .insert({
+          test_code:
+            result.test_code,
 
-  const payload = {
+          candidate_name:
+            result.candidate_name,
 
-    test_code:
-      result.testCode,
+          answers:
+            result.answers,
 
-    candidate_name:
-      result.candidateName,
+          correct_count:
+            result.correct_count,
 
-    answers:
-      result.answers,
+          wrong_count:
+            result.wrong_count,
 
-    correct_count:
-      result.correct,
+          unanswered_count:
+            result.unanswered_count,
 
-    wrong_count:
-      result.wrong,
+          score:
+            result.score,
 
-    unanswered_count:
-      result.unanswered,
+          total_marks:
+            result.total_marks,
 
-    score:
-      result.score,
+          percentage:
+            result.percentage
+        });
 
-    total_marks:
-      result.totalMarks,
+    if (error) {
+      throw error;
+    }
 
-    percentage:
-      result.percentage,
+    if (saveStatus) {
+      saveStatus.className =
+        "result-save-status success";
 
-    submitted_at:
-      new Date().toISOString()
+      saveStatus.textContent =
+        "✓ Result saved successfully.";
+    }
+  } catch (error) {
+    console.error(
+      "Result save error:",
+      error
+    );
 
-  };
+    if (saveStatus) {
+      saveStatus.className =
+        "result-save-status warning";
 
-
-  const {
-    error
-  } =
-    await supabaseClient
-      .from(
-        "exam_results"
-      )
-      .insert(
-        payload
-      );
-
-
-  if (error) {
-
-    throw error;
-
+      saveStatus.textContent =
+        "Result calculated, but could not be saved.";
+    }
   }
-
 }
 
 
@@ -3751,98 +1892,63 @@ async function saveExamResult(
 function renderResult(
   result
 ) {
-
   const resultBox =
     $("resultBox");
-
 
   if (!resultBox) {
     return;
   }
 
-
   resultBox.innerHTML = `
-
     <div class="result-title">
       Result
     </div>
 
-
-    <p>
-      <strong>
-        ${escapeHtml(
-          result.candidateName
-        )}
-      </strong>
-
-      <br>
-
-      ${escapeHtml(
-        currentTest?.name ||
-        "Exam"
-      )}
-    </p>
-
-
     <div class="result-stats">
 
-
       <div class="result-stat">
-
         <span>
           Correct
         </span>
 
         <strong>
-          ${result.correct}
+          ${result.correct_count}
         </strong>
-
       </div>
 
-
       <div class="result-stat">
-
         <span>
           Wrong
         </span>
 
         <strong>
-          ${result.wrong}
+          ${result.wrong_count}
         </strong>
-
       </div>
 
-
       <div class="result-stat">
-
         <span>
           Unanswered
         </span>
 
         <strong>
-          ${result.unanswered}
+          ${result.unanswered_count}
         </strong>
-
       </div>
 
-
       <div class="result-stat">
-
         <span>
           Percentage
         </span>
 
         <strong>
-          ${result.percentage.toFixed(
-            2
-          )}%
+          ${Number(
+            result.percentage
+          ).toFixed(2)}%
         </strong>
-
       </div>
 
-
     </div>
-
 
     <div class="score-display">
 
@@ -3851,28 +1957,28 @@ function renderResult(
       </span>
 
       <strong>
-
         ${formatNumber(
           result.score
         )}
-
         /
-
         ${formatNumber(
-          result.totalMarks
+          result.total_marks
         )}
-
       </strong>
 
     </div>
 
+    <div
+      id="resultSaveStatus"
+      class="result-save-status"
+    >
+      Saving result...
+    </div>
   `;
-
 
   show(
     resultBox
   );
-
 
   resultBox.scrollIntoView({
     behavior:
@@ -3881,167 +1987,75 @@ function renderResult(
     block:
       "nearest"
   });
-
 }
 
 
 /* =========================================================
-   SUBMIT EXAM
+   NUMBER FORMAT
    ========================================================= */
 
-async function submitExam() {
-
-  if (!currentTest) {
-
-    alert(
-      "No active exam found."
+function formatNumber(
+  number
+) {
+  return Number(number)
+    .toFixed(2)
+    .replace(
+      /\.00$/,
+      ""
     );
-
-    return;
-
-  }
+}
 
 
-  const nameInput =
-    $("candidateName");
+/* =========================================================
+   RESET EXAM
+   ========================================================= */
 
-
-  candidateName =
-    nameInput?.value
-      ?.trim() ||
-    "";
-
-
-  if (!candidateName) {
-
-    alert(
-      "Please enter your name before submitting the exam."
-    );
-
-
-    nameInput?.focus();
-
-
-    return;
-
-  }
-
-
-  const unanswered =
-    selectedAnswers.filter(
-      (answer) =>
-        !answer
-    ).length;
-
-
-  if (
-    unanswered > 0
-  ) {
-
-    const proceed =
+$("resetExamBtn")?.addEventListener(
+  "click",
+  () => {
+    const confirmed =
       confirm(
-        `${unanswered} question(s) are unanswered.\n\nSubmit anyway?`
+        "Are you sure you want to clear all answers?"
       );
 
-
-    if (!proceed) {
+    if (!confirmed) {
       return;
     }
 
+    selectedAnswers =
+      new Array(
+        currentQuestionCount
+      ).fill("");
+
+    const inputs =
+      document.querySelectorAll(
+        "#examGrid input[type='radio']"
+      );
+
+    inputs.forEach(
+      (input) => {
+        input.checked =
+          false;
+
+        const label =
+          input.closest(
+            ".answer-option"
+          );
+
+        if (label) {
+          label.classList.remove(
+            "selected"
+          );
+        }
+      }
+    );
+
+    hide(
+      $("resultBox")
+    );
+
+    updateProgress();
   }
-
-
-  const submitButton =
-    $("submitExamBtn");
-
-
-  if (submitButton) {
-
-    submitButton.disabled =
-      true;
-
-  }
-
-
-  setLoading(
-    true,
-    "Checking your answers..."
-  );
-
-
-  try {
-
-    const result =
-      calculateResult();
-
-
-    await saveExamResult(
-      result
-    );
-
-
-    renderResult(
-      result
-    );
-
-
-  } catch (error) {
-
-    console.error(
-      "Result submission error:",
-      error
-    );
-
-
-    /*
-      Even if database insertion fails,
-      show the calculated result locally.
-    */
-
-    const result =
-      calculateResult();
-
-
-    renderResult(
-      result
-    );
-
-
-    alert(
-      "Your result was calculated, but it could not be saved online.\n\n" +
-      (
-        error?.message ||
-        "Unknown error."
-      )
-    );
-
-
-  } finally {
-
-    setLoading(
-      false
-    );
-
-
-    if (submitButton) {
-
-      submitButton.disabled =
-        false;
-
-    }
-
-  }
-
-}
-
-
-/* =========================================================
-   SUBMIT BUTTON
-   ========================================================= */
-
-$("submitExamBtn")?.addEventListener(
-  "click",
-  submitExam
 );
 
 
@@ -4049,91 +2063,58 @@ $("submitExamBtn")?.addEventListener(
    COPY TEST CODE
    ========================================================= */
 
-async function copyTestCode() {
+$("copyCodeBtn")?.addEventListener(
+  "click",
+  async () => {
+    const code =
+      $("createdCode")
+        ?.textContent
+        ?.trim();
 
-  const code =
-    $("createdCode")
-      ?.textContent
-      ?.trim();
+    if (!code) {
+      return;
+    }
 
+    try {
+      await navigator
+        .clipboard
+        .writeText(
+          code
+        );
 
-  if (!code) {
-
-    return;
-
-  }
-
-
-  try {
-
-    await navigator.clipboard.writeText(
-      code
-    );
-
-
-    const button =
-      $("copyCodeBtn");
-
-
-    if (button) {
-
-      const originalText =
-        button.textContent;
-
-
-      button.textContent =
-        "Copied ✓";
-
+      $("copyCodeBtn")
+        .textContent =
+        "Copied!";
 
       setTimeout(
         () => {
-
-          button.textContent =
-            originalText;
-
+          $("copyCodeBtn")
+            .textContent =
+            "Copy Code";
         },
-        1600
+        1500
       );
-
+    } catch (error) {
+      alert(
+        `Test Code: ${code}`
+      );
     }
-
-  } catch (error) {
-
-    console.error(
-      error
-    );
-
-
-    alert(
-      `Test Code: ${code}`
-    );
-
   }
-
-}
-
-
-$("copyCodeBtn")?.addEventListener(
-  "click",
-  copyTestCode
 );
 
 
 /* =========================================================
-   HOME NAVIGATION
+   NAVIGATION
    ========================================================= */
 
 $("showCreateBtn")?.addEventListener(
   "click",
   () => {
+    resetCreateForm();
 
     showScreen(
       "createScreen"
     );
-
-
-    renderOptionSettings();
-
   }
 );
 
@@ -4141,1960 +2122,30 @@ $("showCreateBtn")?.addEventListener(
 $("showJoinBtn")?.addEventListener(
   "click",
   () => {
+    if ($("joinCode")) {
+      $("joinCode")
+        .value =
+        "";
+    }
+
+    hideStatus(
+      $("joinStatus")
+    );
 
     showScreen(
       "joinScreen"
     );
-
-
-    setTimeout(
-      () => {
-
-        $("joinCode")
-          ?.focus();
-
-      },
-      100
-    );
-
   }
 );
 
-
-$("backHomeFromCreate")?.addEventListener(
-  "click",
-  () => {
-
-    showScreen(
-      "homeScreen"
-    );
-
-  }
-);
-
-
-$("backHomeFromJoin")?.addEventListener(
-  "click",
-  () => {
-
-    showScreen(
-      "homeScreen"
-    );
-
-  }
-);
-
-
-$("goHomeAfterCreate")?.addEventListener(
-  "click",
-  () => {
-
-    showScreen(
-      "homeScreen"
-    );
-
-  }
-);
-
-
-$("backToCreateBtn")?.addEventListener(
-  "click",
-  () => {
-
-    showScreen(
-      "createScreen"
-    );
-
-  }
-);
-
-
-/* =========================================================
-   CLEAR CREATE FORM
-   ========================================================= */
-
-$("clearCreateBtn")?.addEventListener(
-  "click",
-  () => {
-
-    const testName =
-      $("testName");
-
-
-    const pdfFile =
-      $("pdfFile");
-
-
-    const questionCount =
-      $("questionCount");
-
-
-    const pdfStatus =
-      $("pdfStatus");
-
-
-    if (testName) {
-
-      testName.value =
-        "";
-
-    }
-
-
-    if (pdfFile) {
-
-      pdfFile.value =
-        "";
-
-    }
-
-
-    if (questionCount) {
-
-      questionCount.value =
-        "40";
-
-    }
-
-
-    if (pdfStatus) {
-
-      pdfStatus.textContent =
-        "";
-
-      pdfStatus.style.color =
-        "";
-
-    }
-
-
-    hide(
-      $("pdfPreviewBox")
-    );
-
-
-    currentPdfUrl =
-      "";
-
-    currentTest =
-      null;
-
-    currentOptions =
-      [];
-
-    currentAnswerKey =
-      [];
-
-
-    renderOptionSettings();
-
-  }
-);
-
-
-/* =========================================================
-   QUESTION COUNT CHANGE
-   ========================================================= */
-
-$("questionCount")?.addEventListener(
-  "change",
-  () => {
-
-    const count =
-      Number(
-        $("questionCount")
-          ?.value
-      );
-
-
-    if (
-      Number.isInteger(
-        count
-      ) &&
-      count >= 1 &&
-      count <= 300
-    ) {
-
-      renderOptionSettings();
-
-    }
-
-  }
-);
-
-
-/* =========================================================
-   DEFAULT OPTIONS CHANGE
-   ========================================================= */
-
-$("defaultOptions")?.addEventListener(
-  "change",
-  () => {
-
-    const value =
-      normalizeOptionCount(
-        $("defaultOptions")
-          ?.value
-      );
-
-
-    document
-      .querySelectorAll(
-        ".question-option-count"
-      )
-      .forEach(
-        (select) => {
-
-          select.value =
-            String(value);
-
-        }
-      );
-
-  }
-);
-
-
-/* =========================================================
-   JOIN CODE INPUT
-   ========================================================= */
-
-$("joinCode")?.addEventListener(
-  "input",
-  (event) => {
-
-    const input =
-      event.target;
-
-
-    input.value =
-      input.value
-        .toUpperCase()
-        .replace(
-          /[^A-Z0-9]/g,
-          ""
-        )
-        .slice(
-          0,
-          6
-        );
-
-  }
-);
-
-
-/* =========================================================
-   JOIN CODE ENTER KEY
-   ========================================================= */
-
-$("joinCode")?.addEventListener(
-  "keydown",
-  (event) => {
-
-    if (
-      event.key ===
-      "Enter"
-    ) {
-
-      event.preventDefault();
-
-      $("joinBtn")
-        ?.click();
-
-    }
-
-  }
-);
-
-
-/* =========================================================
-   CANDIDATE NAME ENTER KEY
-   ========================================================= */
-
-document.addEventListener(
-  "keydown",
-  (event) => {
-
-    if (
-      event.key !==
-      "Enter"
-    ) {
-
-      return;
-
-    }
-
-
-    const active =
-      document.activeElement;
-
-
-    if (
-      active?.id !==
-      "candidateName"
-    ) {
-
-      return;
-
-    }
-
-
-    event.preventDefault();
-
-
-    $("submitExamBtn")
-      ?.click();
-
-  }
-);
-
-
-/* =========================================================
-   BEFORE LEAVING EXAM
-   ========================================================= */
-
-window.addEventListener(
-  "beforeunload",
-  (event) => {
-
-    const examScreen =
-      $("examScreen");
-
-
-    if (
-      !examScreen ||
-      examScreen.classList.contains(
-        "hidden"
-      )
-    ) {
-
-      return;
-
-    }
-
-
-    const answered =
-      selectedAnswers.filter(
-        Boolean
-      ).length;
-
-
-    if (
-      answered <= 0
-    ) {
-
-      return;
-
-    }
-
-
-    event.preventDefault();
-
-    event.returnValue =
-      "";
-
-  }
-);
-
-
-/* =========================================================
-   MOBILE PDF VIEWER HELPERS
-   ========================================================= */
-
-function isAndroidDevice() {
-
-  return /Android/i.test(
-    navigator.userAgent
-  );
-
-}
-
-
-function isIOSDevice() {
-
-  return /iPhone|iPad|iPod/i.test(
-    navigator.userAgent
-  );
-
-}
-
-
-function isMobileDevice() {
-
-  return (
-    isAndroidDevice() ||
-    isIOSDevice() ||
-    /Mobile/i.test(
-      navigator.userAgent
-    )
-  );
-
-}
-
-
-/* =========================================================
-   PDF VIEWER DEVICE MODE
-   ========================================================= */
-
-function applyPdfViewerDeviceMode() {
-
-  const viewer =
-    $("mobilePdfViewer");
-
-
-  if (!viewer) {
-    return;
-  }
-
-
-  if (
-    isAndroidDevice()
-  ) {
-
-    viewer.classList.add(
-      "android-pdf-viewer"
-    );
-
-  } else {
-
-    viewer.classList.remove(
-      "android-pdf-viewer"
-    );
-
-  }
-
-
-  if (
-    isMobileDevice()
-  ) {
-
-    viewer.classList.add(
-      "mobile-device-pdf"
-    );
-
-  } else {
-
-    viewer.classList.remove(
-      "mobile-device-pdf"
-    );
-
-  }
-
-}
-
-
-/* =========================================================
-   PDF VIEWER AFTER EXAM SCREEN
-   ========================================================= */
-
-function finalizePdfViewerSetup() {
-
-  setupExamPdf();
-
-  bindPdfFrameEvents();
-
-  applyPdfViewerDeviceMode();
-
-}
-
-
-/* =========================================================
-   SCREEN CHANGE OBSERVER
-   ========================================================= */
-
-const examScreenElement =
-  $("examScreen");
-
-
-if (examScreenElement) {
-
-  const examObserver =
-    new MutationObserver(
-      () => {
-
-        if (
-          !examScreenElement.classList.contains(
-            "hidden"
-          )
-        ) {
-
-          setTimeout(
-            () => {
-
-              finalizePdfViewerSetup();
-
-            },
-            50
-          );
-
-        }
-
-      }
-    );
-
-
-  examObserver.observe(
-    examScreenElement,
-    {
-      attributes:
-        true,
-
-      attributeFilter:
-        ["class"]
-    }
-  );
-
-}
-
-
-/* =========================================================
-   INITIAL PAGE SETUP
-   ========================================================= */
-
-function initializeApplication() {
-
-  /*
-    Create option settings.
-  */
-
-  renderOptionSettings();
-
-
-  /*
-    Make sure the application starts
-    from Home.
-  */
-
-  const screens =
-    document.querySelectorAll(
-      ".screen"
-    );
-
-
-  const visibleScreen =
-    Array
-      .from(screens)
-      .find(
-        (screen) =>
-          !screen.classList.contains(
-            "hidden"
-          )
-      );
-
-
-  if (!visibleScreen) {
-
-    showScreen(
-      "homeScreen"
-    );
-
-  }
-
-
-  /*
-    Prepare the PDF viewer structure
-    without loading any PDF yet.
-  */
-
-  setupExamPdf();
-
-}
-
-
-/* =========================================================
-   DOM READY
-   ========================================================= */
-
-if (
-  document.readyState ===
-  "loading"
-) {
-
-  document.addEventListener(
-    "DOMContentLoaded",
-    initializeApplication
-  );
-
-} else {
-
-  initializeApplication();
-
-}
-
-
-/* =========================================================
-   GLOBAL ERROR HANDLING
-   ========================================================= */
-
-window.addEventListener(
-  "unhandledrejection",
-  (event) => {
-
-    console.error(
-      "Unhandled promise rejection:",
-      event.reason
-    );
-
-  }
-);
-
-
-window.addEventListener(
-  "error",
-  (event) => {
-
-    console.error(
-      "Global JavaScript error:",
-      event.error ||
-        event.message
-    );
-
-  }
-);
-
-
-/* =========================================================
-   END OF PART 3
-   ========================================================= */
-  /* =========================================================
-   EXAM OMR — PART 4
-   ========================================================= */
-
-
-/* =========================================================
-   PDF VIEWER EXTRA SAFETY
-   ========================================================= */
-
-/*
-  The PDF.js viewer is intentionally isolated
-  inside its iframe.
-
-  We do not try to manipulate its internal buttons
-  from the parent page.
-
-  This avoids cross-origin problems and lets the
-  official PDF.js viewer handle:
-
-  - Zoom
-  - Page navigation
-  - Search
-  - Rotation
-  - Mobile touch
-  - Page thumbnails
-*/
-
-
-function getPdfFrame() {
-
-  return $("pdfViewerFrame");
-
-}
-
-
-/* =========================================================
-   RELOAD CURRENT PDF
-   ========================================================= */
-
-function reloadCurrentPdf() {
-
-  if (!currentPdfUrl) {
-
-    return;
-
-  }
-
-
-  const frame =
-    getPdfFrame();
-
-
-  if (!frame) {
-
-    return;
-
-  }
-
-
-  const newUrl =
-    buildPdfViewerUrl(
-      currentPdfUrl
-    );
-
-
-  frame.src =
-    newUrl;
-
-
-  frame.dataset.pdfUrl =
-    currentPdfUrl;
-
-}
-
-
-/* =========================================================
-   OPEN PDF VIEWER
-   ========================================================= */
-
-function openCurrentPdfViewer() {
-
-  if (!currentPdfUrl) {
-
-    alert(
-      "Question paper PDF is not available."
-    );
-
-    return;
-
-  }
-
-
-  const viewerUrl =
-    buildPdfViewerUrl(
-      currentPdfUrl
-    );
-
-
-  /*
-    Try opening the official PDF.js viewer.
-
-    If popup blocking prevents this,
-    fall back to the PDF URL.
-  */
-
-  const opened =
-    window.open(
-      viewerUrl,
-      "_blank"
-    );
-
-
-  if (!opened) {
-
-    window.location.href =
-      viewerUrl;
-
-  }
-
-}
-
-
-/* =========================================================
-   PDF VIEWER BUTTON
-   ========================================================= */
-
-document.addEventListener(
-  "click",
-  (event) => {
-
-    const target =
-      event.target;
-
-
-    if (
-      !(target instanceof
-        HTMLElement)
-    ) {
-
-      return;
-
-    }
-
-
-    if (
-      target.closest(
-        "#pdfFullscreenBtn"
-      )
-    ) {
-
-      event.preventDefault();
-
-      openCurrentPdfViewer();
-
-    }
-
-  }
-);
-
-
-/* =========================================================
-   PDF EXTERNAL LINK
-   ========================================================= */
-
-document.addEventListener(
-  "click",
-  (event) => {
-
-    const target =
-      event.target;
-
-
-    if (
-      !(target instanceof
-        HTMLElement)
-    ) {
-
-      return;
-
-    }
-
-
-    const link =
-      target.closest(
-        "#pdfExternalLink"
-      );
-
-
-    if (!link) {
-      return;
-    }
-
-
-    if (!currentPdfUrl) {
-
-      event.preventDefault();
-
-      alert(
-        "Question paper PDF is not available."
-      );
-
-      return;
-
-    }
-
-
-    link.href =
-      currentPdfUrl;
-
-  }
-);
-
-
-/* =========================================================
-   PDF VIEWER KEYBOARD SUPPORT
-   ========================================================= */
-
-document.addEventListener(
-  "keydown",
-  (event) => {
-
-    /*
-      Do not interfere with typing
-      inside input fields.
-    */
-
-    const active =
-      document.activeElement;
-
-
-    if (
-      active &&
-      (
-        active.tagName ===
-          "INPUT" ||
-        active.tagName ===
-          "TEXTAREA" ||
-        active.tagName ===
-          "SELECT"
-      )
-    ) {
-
-      return;
-
-    }
-
-
-    const examScreen =
-      $("examScreen");
-
-
-    if (
-      !examScreen ||
-      examScreen.classList.contains(
-        "hidden"
-      )
-    ) {
-
-      return;
-
-    }
-
-
-    /*
-      Keyboard shortcuts for opening
-      the PDF viewer.
-    */
-
-    if (
-      event.key ===
-      "p"
-    ) {
-
-      event.preventDefault();
-
-      openCurrentPdfViewer();
-
-    }
-
-  }
-);
-
-
-/* =========================================================
-   PDF URL VALIDATION
-   ========================================================= */
-
-function isValidPdfUrl(
-  url
-) {
-
-  if (!url) {
-
-    return false;
-
-  }
-
-
-  try {
-
-    const parsed =
-      new URL(
-        url,
-        window.location.href
-      );
-
-
-    return (
-      parsed.protocol ===
-        "http:" ||
-      parsed.protocol ===
-        "https:"
-    );
-
-  } catch {
-
-    return false;
-
-  }
-
-}
-
-
-/* =========================================================
-   SAFE PDF INITIALIZATION
-   ========================================================= */
-
-async function safelyInitializePdf(
-  url
-) {
-
-  if (
-    !isValidPdfUrl(
-      url
-    )
-  ) {
-
-    throw new Error(
-      "The question paper URL is invalid."
-    );
-
-  }
-
-
-  currentPdfUrl =
-    url;
-
-
-  /*
-    Make sure the viewer exists.
-  */
-
-  setupExamPdf();
-
-
-  /*
-    Give the DOM a moment to finish
-    inserting the viewer.
-  */
-
-  await new Promise(
-    (resolve) => {
-
-      requestAnimationFrame(
-        resolve
-      );
-
-    }
-  );
-
-
-  loadPdfIntoViewer(
-    url
-  );
-
-
-  /*
-    Do not attempt to inspect
-    the iframe contents.
-
-    The official viewer controls
-    everything internally.
-  */
-
-}
-
-
-/* =========================================================
-   IMPROVED OPEN EXAM
-   ========================================================= */
-
-async function openExam(
-  test
-) {
-
-  if (!test) {
-
-    throw new Error(
-      "Test data is missing."
-    );
-
-  }
-
-
-  currentTest =
-    test;
-
-
-  currentQuestionCount =
-    Number(
-      test.question_count
-    ) || 0;
-
-
-  if (
-    currentQuestionCount <=
-    0
-  ) {
-
-    throw new Error(
-      "Invalid question count."
-    );
-
-  }
-
-
-  currentOptions =
-    Array.isArray(
-      test.options
-    )
-      ? test.options.map(
-          normalizeOptionCount
-        )
-      : new Array(
-          currentQuestionCount
-        ).fill(4);
-
-
-  currentAnswerKey =
-    Array.isArray(
-      test.answer_key
-    )
-      ? test.answer_key
-      : [];
-
-
-  selectedAnswers =
-    new Array(
-      currentQuestionCount
-    ).fill("");
-
-
-  candidateName =
-    "";
-
-
-  /*
-    Exam heading.
-  */
-
-  if ($("examName")) {
-
-    $("examName")
-      .textContent =
-      test.name ||
-      "Exam";
-
-  }
-
-
-  if ($("examInfo")) {
-
-    $("examInfo")
-      .textContent =
-      `${currentQuestionCount} Questions • Code: ${test.code}`;
-
-  }
-
-
-  /*
-    Candidate name.
-  */
-
-  ensureCandidateNameInput();
-
-
-  if ($("candidateName")) {
-
-    $("candidateName")
-      .value =
-      "";
-
-  }
-
-
-  /*
-    PDF.
-  */
-
-  currentPdfUrl =
-    test.pdf_url;
-
-
-  await safelyInitializePdf(
-    currentPdfUrl
-  );
-
-
-  /*
-    OMR.
-  */
-
-  renderExam();
-
-
-  /*
-    Finally show exam.
-  */
-
-  showScreen(
-    "examScreen"
-  );
-
-
-  /*
-    PDF viewer may have been created
-    before the screen became visible.
-
-    Re-apply setup after screen display.
-  */
-
-  requestAnimationFrame(
-    () => {
-
-      finalizePdfViewerSetup();
-
-    }
-  );
-
-}
-
-
-/* =========================================================
-   JOIN BUTTON — FINAL
-   ========================================================= */
-
-/*
-  Remove any accidental duplicate join
-  handlers by using a delegated handler.
-
-  The existing listener still works, but this
-  function provides a safe alternative when
-  the button is clicked.
-*/
-
-
-async function handleJoinTest() {
-
-  const input =
-    $("joinCode");
-
-
-  const status =
-    $("joinStatus");
-
-
-  const code =
-    input?.value
-      ?.trim()
-      ?.toUpperCase();
-
-
-  hideStatus(
-    status
-  );
-
-
-  if (!code) {
-
-    showStatus(
-      status,
-      "Please enter the test code.",
-      "error"
-    );
-
-    return;
-
-  }
-
-
-  if (
-    code.length !==
-    6
-  ) {
-
-    showStatus(
-      status,
-      "Test Code must contain 6 characters.",
-      "error"
-    );
-
-    return;
-
-  }
-
-
-  setLoading(
-    true,
-    "Loading test..."
-  );
-
-
-  try {
-
-    const test =
-      await loadTestByCode(
-        code
-      );
-
-
-    await openExam(
-      test
-    );
-
-
-  } catch (error) {
-
-    console.error(
-      error
-    );
-
-
-    showStatus(
-      status,
-      error?.message ||
-        "Could not load the test.",
-      "error"
-    );
-
-
-  } finally {
-
-    setLoading(
-      false
-    );
-
-  }
-
-}
-
-
-/*
-  The HTML button already has a click listener
-  from the previous section.
-
-  We intentionally do not attach another
-  click listener here because that could
-  cause the test to load twice.
-*/
-
-
-/* =========================================================
-   EXAM STATE CHECK
-   ========================================================= */
-
-function isExamActive() {
-
-  const screen =
-    $("examScreen");
-
-
-  return Boolean(
-    screen &&
-    !screen.classList.contains(
-      "hidden"
-    ) &&
-    currentTest
-  );
-
-}
-
-
-/* =========================================================
-   PREVENT ACCIDENTAL DOUBLE SUBMISSION
-   ========================================================= */
-
-let examSubmitting =
-  false;
-
-
-async function safeSubmitExam() {
-
-  if (examSubmitting) {
-
-    return;
-
-  }
-
-
-  examSubmitting =
-    true;
-
-
-  try {
-
-    await submitExam();
-
-  } finally {
-
-    examSubmitting =
-      false;
-
-  }
-
-}
-
-
-/* =========================================================
-   RESULT SAVE RETRY
-   ========================================================= */
-
-async function retrySaveResult(
-  result
-) {
-
-  if (!result) {
-
-    return false;
-
-  }
-
-
-  try {
-
-    await saveExamResult(
-      result
-    );
-
-    return true;
-
-  } catch (error) {
-
-    console.error(
-      "Retry result save failed:",
-      error
-    );
-
-    return false;
-
-  }
-
-}
-
-
-/* =========================================================
-   RESULT LOCAL BACKUP
-   ========================================================= */
-
-function createLocalResultBackup(
-  result
-) {
-
-  if (!result) {
-    return;
-  }
-
-
-  try {
-
-    const key =
-      `exam-result-${result.testCode}`;
-
-
-    localStorage.setItem(
-      key,
-      JSON.stringify(
-        result
-      )
-    );
-
-  } catch (error) {
-
-    console.warn(
-      "Could not save local result backup:",
-      error
-    );
-
-  }
-
-}
-
-
-/* =========================================================
-   REMOVE LOCAL RESULT BACKUP
-   ========================================================= */
-
-function removeLocalResultBackup(
-  testCode
-) {
-
-  if (!testCode) {
-    return;
-  }
-
-
-  try {
-
-    localStorage.removeItem(
-      `exam-result-${testCode}`
-    );
-
-  } catch (error) {
-
-    console.warn(
-      "Could not remove local result backup:",
-      error
-    );
-
-  }
-
-}
-
-
-/* =========================================================
-   RESULT DISPLAY AFTER SUBMISSION
-   ========================================================= */
-
-function finishExamWithResult(
-  result,
-  saved
-) {
-
-  renderResult(
-    result
-  );
-
-
-  if (saved) {
-
-    removeLocalResultBackup(
-      result.testCode
-    );
-
-  } else {
-
-    createLocalResultBackup(
-      result
-    );
-
-  }
-
-
-  /*
-    Scroll to result.
-  */
-
-  const resultBox =
-    $("resultBox");
-
-
-  if (resultBox) {
-
-    setTimeout(
-      () => {
-
-        resultBox.scrollIntoView({
-          behavior:
-            "smooth",
-
-          block:
-            "center"
-        });
-
-      },
-      100
-    );
-
-  }
-
-}
-
-
-/* =========================================================
-   RESULT STATUS
-   ========================================================= */
-
-function showResultSaveStatus(
-  saved
-) {
-
-  const box =
-    $("resultBox");
-
-
-  if (!box) {
-    return;
-  }
-
-
-  const existing =
-    box.querySelector(
-      ".result-save-status"
-    );
-
-
-  if (existing) {
-
-    existing.remove();
-
-  }
-
-
-  const status =
-    document.createElement(
-      "div"
-    );
-
-
-  status.className =
-    "result-save-status";
-
-
-  if (saved) {
-
-    status.textContent =
-      "✓ Result saved successfully.";
-
-    status.classList.add(
-      "success"
-    );
-
-  } else {
-
-    status.textContent =
-      "⚠ Result calculated locally. Online save failed.";
-
-    status.classList.add(
-      "warning"
-    );
-
-  }
-
-
-  box.appendChild(
-    status
-  );
-
-}
-
-
-/* =========================================================
-   FINAL SUBMIT FLOW
-   ========================================================= */
-
-async function submitExamFinal() {
-
-  if (!isExamActive()) {
-
-    return;
-
-  }
-
-
-  const nameInput =
-    $("candidateName");
-
-
-  candidateName =
-    nameInput?.value
-      ?.trim() ||
-    "";
-
-
-  if (!candidateName) {
-
-    alert(
-      "Please enter your name before submitting the exam."
-    );
-
-
-    nameInput?.focus();
-
-
-    return;
-
-  }
-
-
-  const unanswered =
-    selectedAnswers.filter(
-      (answer) =>
-        !answer
-    ).length;
-
-
-  if (
-    unanswered > 0
-  ) {
-
-    const confirmed =
-      confirm(
-        `${unanswered} question(s) are unanswered.\n\nDo you want to submit the exam?`
-      );
-
-
-    if (!confirmed) {
-
-      return;
-
-    }
-
-  }
-
-
-  const result =
-    calculateResult();
-
-
-  setLoading(
-    true,
-    "Saving your result..."
-  );
-
-
-  let saved =
-    false;
-
-
-  try {
-
-    await saveExamResult(
-      result
-    );
-
-
-    saved =
-      true;
-
-
-  } catch (error) {
-
-    console.error(
-      "Could not save result:",
-      error
-    );
-
-
-    /*
-      We don't throw the result away.
-
-      The candidate still gets the
-      calculated result.
-    */
-
-    createLocalResultBackup(
-      result
-    );
-
-  }
-
-
-  setLoading(
-    false
-  );
-
-
-  finishExamWithResult(
-    result,
-    saved
-  );
-
-
-  showResultSaveStatus(
-    saved
-  );
-
-}
-
-
-/* =========================================================
-   SUBMIT BUTTON REPLACEMENT
-   ========================================================= */
-
-/*
-  Replace the previous handler by using
-  event delegation.
-
-  This works even if the button is recreated
-  by another UI layer.
-*/
-
-document.addEventListener(
-  "click",
-  (event) => {
-
-    const target =
-      event.target;
-
-
-    if (
-      !(target instanceof
-        HTMLElement)
-    ) {
-
-      return;
-
-    }
-
-
-    if (
-      target.closest(
-        "#submitExamBtn"
-      )
-    ) {
-
-      /*
-        Stop the event from bubbling
-        further.
-      */
-
-      event.preventDefault();
-
-
-      /*
-        Use the final submit flow.
-      */
-
-      submitExamFinal();
-
-    }
-
-  }
-);
-
-
-/* =========================================================
-   CREATE SCREEN SHORTCUT
-   ========================================================= */
-
-document.addEventListener(
-  "keydown",
-  (event) => {
-
-    if (
-      event.key !==
-      "Escape"
-    ) {
-
-      return;
-
-    }
-
-
-    const createScreen =
-      $("createScreen");
-
-
-    if (
-      createScreen &&
-      !createScreen.classList.contains(
-        "hidden"
-      )
-    ) {
-
-      showScreen(
-        "homeScreen"
-      );
-
-    }
-
-  }
-);
-
-
-/* =========================================================
-   EXAM PDF URL CHANGE DETECTION
-   ========================================================= */
-
-let previousExamPdfUrl =
-  "";
-
-
-function detectPdfUrlChange() {
-
-  if (
-    !currentTest
-  ) {
-
-    return;
-
-  }
-
-
-  const url =
-    currentTest.pdf_url;
-
-
-  if (
-    !url
-  ) {
-
-    return;
-
-  }
-
-
-  if (
-    url ===
-    previousExamPdfUrl
-  ) {
-
-    return;
-
-  }
-
-
-  previousExamPdfUrl =
-    url;
-
-
-  currentPdfUrl =
-    url;
-
-
-  const frame =
-    $("pdfViewerFrame");
-
-
-  if (
-    frame &&
-    frame.dataset.pdfUrl !==
-      url
-  ) {
-
-    loadPdfIntoViewer(
-      url
-    );
-
-  }
-
-}
-
-
-/* =========================================================
-   PDF VIEWER WATCHER
-   ========================================================= */
-
-setInterval(
-  () => {
-
-    if (
-      !isExamActive()
-    ) {
-
-      return;
-
-    }
-
-
-    detectPdfUrlChange();
-
-  },
-  1000
-);
-
-
-/* =========================================================
-   END OF PART 4
-   ========================================================= */
-   /* =========================================================
-   EXAM OMR — PART 5/5
-   FINAL INITIALIZATION & NAVIGATION
-   ========================================================= */
-
-
-/* =========================================================
-   BACK TO HOME
-   ========================================================= */
-
-function goHome() {
-
-  /*
-    Clean PDF viewer first.
-  */
-
-  destroyPdfViewer();
-
-
-  /*
-    Reset exam state.
-  */
-
-  currentTest =
-    null;
-
-  currentPdfUrl =
-    "";
-
-  currentQuestionCount =
-    40;
-
-  currentOptions =
-    [];
-
-  currentAnswerKey =
-    [];
-
-  selectedAnswers =
-    [];
-
-  candidateName =
-    "";
-
-  previousExamPdfUrl =
-    "";
-
-
-  /*
-    Show home.
-  */
-
-  showScreen(
-    "homeScreen"
-  );
-
-}
-
-
-/* =========================================================
-   HOME BUTTONS
-   ========================================================= */
 
 $("backHomeFromCreate")
   ?.addEventListener(
     "click",
     () => {
-
-      goHome();
-
+      showScreen(
+        "homeScreen"
+      );
     }
   );
 
@@ -6103,9 +2154,20 @@ $("backHomeFromJoin")
   ?.addEventListener(
     "click",
     () => {
+      showScreen(
+        "homeScreen"
+      );
+    }
+  );
 
-      goHome();
 
+$("backToCreateBtn")
+  ?.addEventListener(
+    "click",
+    () => {
+      showScreen(
+        "createScreen"
+      );
     }
   );
 
@@ -6114,154 +2176,165 @@ $("goHomeAfterCreate")
   ?.addEventListener(
     "click",
     () => {
-
-      goHome();
-
-    }
-  );
-
-
-/* =========================================================
-   CREATE TEST SCREEN
-   ========================================================= */
-
-function openCreateScreen() {
-
-  showScreen(
-    "createScreen"
-  );
-
-
-  renderOptionSettings();
-
-}
-
-
-$("showCreateBtn")
-  ?.addEventListener(
-    "click",
-    openCreateScreen
-  );
-
-
-/* =========================================================
-   JOIN SCREEN
-   ========================================================= */
-
-function openJoinScreen() {
-
-  showScreen(
-    "joinScreen"
-  );
-
-
-  const input =
-    $("joinCode");
-
-
-  setTimeout(
-    () => {
-
-      input?.focus();
-
-    },
-    100
-  );
-
-}
-
-
-$("showJoinBtn")
-  ?.addEventListener(
-    "click",
-    openJoinScreen
-  );
-
-
-/* =========================================================
-   BACK TO CREATE FROM ANSWER KEY
-   ========================================================= */
-
-$("backToCreateBtn")
-  ?.addEventListener(
-    "click",
-    () => {
+      resetCreateForm();
 
       showScreen(
-        "createScreen"
+        "homeScreen"
       );
-
     }
   );
 
 
 /* =========================================================
-   CREATE SCREEN — QUESTION COUNT
+   EXIT EXAM
+   ========================================================= */
+
+$("exitExamBtn")?.addEventListener(
+  "click",
+  () => {
+    const confirmed =
+      confirm(
+        "Leave this test?"
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    currentTest =
+      null;
+
+    currentPdfUrl =
+      "";
+
+    selectedAnswers =
+      [];
+
+    currentResult =
+      null;
+
+    candidateName =
+      "";
+
+    showScreen(
+      "homeScreen"
+    );
+  }
+);
+
+
+/* =========================================================
+   CLEAR CREATE FORM
+   ========================================================= */
+
+function resetCreateForm() {
+  if ($("testName")) {
+    $("testName")
+      .value =
+      "";
+  }
+
+  if ($("pdfFile")) {
+    $("pdfFile")
+      .value =
+      "";
+  }
+
+  if ($("questionCount")) {
+    $("questionCount")
+      .value =
+      "40";
+  }
+
+  if ($("defaultOptions")) {
+    $("defaultOptions")
+      .value =
+      "4";
+  }
+
+  if ($("pdfStatus")) {
+    $("pdfStatus")
+      .textContent =
+      "";
+
+    $("pdfStatus")
+      .style
+      .color =
+      "";
+  }
+
+  if ($("pdfPreview")) {
+    $("pdfPreview")
+      .src =
+      "";
+  }
+
+  hide(
+    $("pdfPreviewBox")
+  );
+
+  currentPdfUrl =
+    "";
+
+  currentTest =
+    null;
+
+  currentOptions =
+    [];
+
+  currentAnswerKey =
+    [];
+
+  testCreatedCode =
+    "";
+
+  renderOptionSettings();
+}
+
+
+$("clearCreateBtn")
+  ?.addEventListener(
+    "click",
+    () => {
+      const confirmed =
+        confirm(
+          "Clear all test creation data?"
+        );
+
+      if (!confirmed) {
+        return;
+      }
+
+      resetCreateForm();
+    }
+  );
+
+
+/* =========================================================
+   QUESTION COUNT CHANGE
    ========================================================= */
 
 $("questionCount")
   ?.addEventListener(
     "input",
     () => {
+      const count =
+        Number(
+          $("questionCount")
+            .value
+        );
 
-      const input =
-        $("questionCount");
-
-
-      if (!input) {
+      if (
+        !Number.isInteger(
+          count
+        ) ||
+        count < 1 ||
+        count > 300
+      ) {
         return;
       }
 
-
-      let value =
-        Number(
-          input.value
-        );
-
-
-      if (
-        !Number.isFinite(
-          value
-        )
-      ) {
-
-        value =
-          40;
-
-      }
-
-
-      value =
-        Math.max(
-          1,
-          Math.min(
-            300,
-            Math.floor(
-              value
-            )
-          )
-        );
-
-
-      /*
-        Don't force the value back
-        while the user is typing an
-        empty field.
-      */
-
-      if (
-        input.value !==
-        ""
-      ) {
-
-        input.value =
-          String(value);
-
-      }
-
-
       renderOptionSettings();
-
     }
   );
 
@@ -6274,46 +2347,21 @@ $("defaultOptions")
   ?.addEventListener(
     "change",
     () => {
-
-      const value =
-        normalizeOptionCount(
-          $("defaultOptions")
-            ?.value
-        );
-
-
-      document
-        .querySelectorAll(
-          ".question-option-count"
-        )
-        .forEach(
-          (select) => {
-
-            select.value =
-              String(value);
-
-          }
-        );
-
+      renderOptionSettings();
     }
   );
 
 
 /* =========================================================
-   JOIN CODE FORMATTER
+   JOIN CODE INPUT
    ========================================================= */
 
 $("joinCode")
   ?.addEventListener(
     "input",
     (event) => {
-
-      const input =
-        event.target;
-
-
-      input.value =
-        input.value
+      event.target.value =
+        event.target.value
           .toUpperCase()
           .replace(
             /[^A-Z0-9]/g,
@@ -6323,460 +2371,100 @@ $("joinCode")
             0,
             6
           );
-
     }
   );
 
-
-/* =========================================================
-   JOIN CODE ENTER
-   ========================================================= */
 
 $("joinCode")
   ?.addEventListener(
     "keydown",
     (event) => {
-
       if (
-        event.key !==
+        event.key ===
         "Enter"
       ) {
-
-        return;
-
+        $("joinBtn")
+          ?.click();
       }
-
-
-      event.preventDefault();
-
-
-      $("joinBtn")
-        ?.click();
-
     }
   );
 
 
 /* =========================================================
-   CANDIDATE NAME
+   SAFETY:
+   REMOVE OLD / DUPLICATE PDF VIEWERS
    ========================================================= */
 
-document.addEventListener(
-  "input",
-  (event) => {
-
-    const target =
-      event.target;
-
-
-    if (
-      !(target instanceof
-        HTMLInputElement)
-    ) {
-
-      return;
-
-    }
-
-
-    if (
-      target.id !==
-      "candidateName"
-    ) {
-
-      return;
-
-    }
-
-
-    /*
-      Keep candidate name trimmed
-      when calculating result, but
-      don't alter what the user types.
-    */
-
-    candidateName =
-      target.value.trim();
-
-  }
-);
-
-
-/* =========================================================
-   CANDIDATE NAME ENTER
-   ========================================================= */
-
-document.addEventListener(
-  "keydown",
-  (event) => {
-
-    const target =
-      event.target;
-
-
-    if (
-      !(target instanceof
-        HTMLInputElement)
-    ) {
-
-      return;
-
-    }
-
-
-    if (
-      target.id !==
-      "candidateName"
-    ) {
-
-      return;
-
-    }
-
-
-    if (
-      event.key ===
-      "Enter"
-    ) {
-
-      event.preventDefault();
-
-
-      submitExamFinal();
-
-    }
-
-  }
-);
-
-
-/* =========================================================
-   PDF VIEWER RESPONSIVE MODE
-   ========================================================= */
-
-function updatePdfViewerLayout() {
-
-  const viewer =
-    $("mobilePdfViewer");
-
-
-  if (!viewer) {
-    return;
-  }
-
-
-  const frame =
-    $("pdfViewerFrame");
-
-
-  if (!frame) {
-    return;
-  }
-
-
-  /*
-    Mobile browsers sometimes report
-    a very small iframe height before
-    layout is complete.
-
-    Give it a sensible minimum.
-  */
-
-  if (
-    window.innerWidth <=
-    650
-  ) {
-
-    frame.style.minHeight =
-      "520px";
-
-  } else {
-
-    frame.style.minHeight =
-      "700px";
-
-  }
-
-}
-
-
-window.addEventListener(
-  "resize",
-  () => {
-
-    updatePdfViewerLayout();
-
-  }
-);
-
-
-/* =========================================================
-   PDF VIEWER SCREEN CHANGE
-   ========================================================= */
-
-function preparePdfViewerWhenVisible() {
-
-  const examScreen =
-    $("examScreen");
-
-
-  if (!examScreen) {
-    return;
-  }
-
-
-  if (
-    examScreen.classList.contains(
-      "hidden"
-    )
-  ) {
-
-    return;
-
-  }
-
-
-  setupExamPdf();
-
-  bindPdfFrameEvents();
-
-  applyPdfViewerDeviceMode();
-
-  updatePdfViewerLayout();
-
-
-  /*
-    If PDF URL exists but the iframe
-    has not been loaded yet, load it.
-  */
-
-  if (
-    currentPdfUrl
-  ) {
-
-    const frame =
-      $("pdfViewerFrame");
-
-
-    if (
-      frame &&
-      frame.dataset.pdfUrl !==
-        currentPdfUrl
-    ) {
-
-      loadPdfIntoViewer(
-        currentPdfUrl
-      );
-
-    }
-
-  }
-
-}
-
-
-/* =========================================================
-   EXAM SCREEN OBSERVER
-   ========================================================= */
-
-const examScreen =
-  $("examScreen");
-
-
-if (examScreen) {
-
-  const observer =
-    new MutationObserver(
-      () => {
-
-        preparePdfViewerWhenVisible();
-
-      }
+function cleanupOldPdfViewers() {
+  const pdfCards =
+    document.querySelectorAll(
+      "#examScreen .pdf-card"
     );
 
+  pdfCards.forEach(
+    (card) => {
+      /*
+        Do not remove the actual card here
+        because buildSinglePdfViewer()
+        will rebuild it when an exam starts.
+      */
 
-  observer.observe(
-    examScreen,
-    {
-      attributes:
-        true,
+      const iframes =
+        card.querySelectorAll(
+          "iframe"
+        );
 
-      attributeFilter:
-        [
-          "class"
-        ]
+      if (
+        iframes.length > 1
+      ) {
+        /*
+          Keep the original #examPdf
+          only until the real viewer is
+          rebuilt.
+        */
+
+        let keep =
+          card.querySelector(
+            "#examPdf"
+          );
+
+        if (!keep) {
+          keep =
+            iframes[0];
+        }
+
+        iframes.forEach(
+          (frame) => {
+            if (
+              frame !== keep
+            ) {
+              frame.remove();
+            }
+          }
+        );
+      }
     }
   );
-
 }
 
 
 /* =========================================================
-   APPLICATION INITIALIZATION
+   INITIALIZATION
    ========================================================= */
 
-function initializeApplication() {
-
-  /*
-    Create default option settings.
-  */
+function initializeApp() {
+  cleanupOldPdfViewers();
 
   renderOptionSettings();
 
-
-  /*
-    Prepare PDF viewer structure.
-  */
-
-  setupExamPdf();
-
-
-  /*
-    Apply device-specific viewer
-    classes.
-  */
-
-  applyPdfViewerDeviceMode();
-
-
-  /*
-    Responsive PDF layout.
-  */
-
-  updatePdfViewerLayout();
-
-
-  /*
-    Find visible screen.
-  */
-
-  const screens =
-    document.querySelectorAll(
-      ".screen"
-    );
-
-
-  const visible =
-    Array
-      .from(screens)
-      .find(
-        (screen) =>
-          !screen.classList.contains(
-            "hidden"
-          )
-      );
-
-
-  /*
-    If nothing is visible,
-    show Home.
-  */
-
-  if (!visible) {
-
-    showScreen(
-      "homeScreen"
-    );
-
-  }
-
-
-  /*
-    Otherwise keep current screen.
-  */
-
-}
-
-
-/* =========================================================
-   DOM READY
-   ========================================================= */
-
-if (
-  document.readyState ===
-  "loading"
-) {
-
-  document.addEventListener(
-    "DOMContentLoaded",
-    initializeApplication
+  showScreen(
+    "homeScreen"
   );
 
-} else {
-
-  initializeApplication();
-
+  console.log(
+    "Exam OMR initialized — Final Version."
+  );
 }
 
 
-/* =========================================================
-   GLOBAL ERROR HANDLING
-   ========================================================= */
-
-window.addEventListener(
-  "error",
-  (event) => {
-
-    console.error(
-      "Exam OMR error:",
-      event.error ||
-        event.message
-    );
-
-  }
-);
-
-
-window.addEventListener(
-  "unhandledrejection",
-  (event) => {
-
-    console.error(
-      "Exam OMR promise error:",
-      event.reason
-    );
-
-  }
-);
-
-
-/* =========================================================
-   NETWORK STATUS
-   ========================================================= */
-
-window.addEventListener(
-  "online",
-  () => {
-
-    console.log(
-      "Internet connection restored."
-    );
-
-  }
-);
-
-
-window.addEventListener(
-  "offline",
-  () => {
-
-    console.warn(
-      "Internet connection lost."
-    );
-
-  }
-);
-
-
-/* =========================================================
-   FINAL SAFETY CHECK
-   ========================================================= */
-
-console.log(
-  "Exam OMR initialized successfully."
-);
-
-
-/* =========================================================
-   END OF script.js
-   ========================================================= */
+initializeApp();
