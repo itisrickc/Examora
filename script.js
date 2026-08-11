@@ -2,25 +2,44 @@
    EXAM OMR — FINAL script.js
    ========================================================= */
 
-const SUPABASE_URL = "https://veanswqdgwffiespeokc.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_IuXKh35oKJiu3_a3HKurkw_YSURgtdT";
+const SUPABASE_URL =
+  "https://veanswqdgwffiespeokc.supabase.co";
 
-const supabaseClient = window.supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_PUBLISHABLE_KEY
-);
+const SUPABASE_PUBLISHABLE_KEY =
+  "sb_publishable_IuXKh35oKJiu3_a3HKurkw_YSURgtdT";
 
-const STORAGE_BUCKET = "question-papers";
+const supabaseClient =
+  window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_PUBLISHABLE_KEY
+  );
 
-const OPTION_LABELS = ["A", "B", "C", "D"];
 
-const PDFJS_VERSION = "4.10.38";
+/* =========================================================
+   CONSTANTS
+   ========================================================= */
 
-const PDFJS_CDN =
-  `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.min.mjs`;
+const STORAGE_BUCKET =
+  "question-papers";
 
-const PDFJS_WORKER_CDN =
-  `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.worker.min.mjs`;
+const OPTION_LABELS =
+  ["A", "B", "C", "D"];
+
+
+/*
+  We use the official Mozilla PDF.js viewer
+  inside an iframe instead of rendering PDF pages
+  ourselves on canvas.
+
+  This is specifically intended to improve:
+  - Android compatibility
+  - zoom
+  - page navigation
+  - touch scrolling
+*/
+
+const PDFJS_VIEWER_URL =
+  "https://mozilla.github.io/pdf.js/web/viewer.html";
 
 
 /* =========================================================
@@ -43,19 +62,16 @@ let testCreatedCode = "";
 
 let candidateName = "";
 
-let pdfJsModule = null;
+
+/*
+  PDF viewer state
+*/
 
 let currentPdfDocument = null;
 
 let currentPdfPage = 1;
 
 let currentPdfScale = 1;
-
-let pdfRendering = false;
-
-let pendingPdfRender = null;
-
-let pdfRenderToken = 0;
 
 
 /* =========================================================
@@ -69,7 +85,9 @@ const $ = (id) =>
 function show(element) {
 
   if (element) {
-    element.classList.remove("hidden");
+    element.classList.remove(
+      "hidden"
+    );
   }
 
 }
@@ -78,7 +96,9 @@ function show(element) {
 function hide(element) {
 
   if (element) {
-    element.classList.add("hidden");
+    element.classList.add(
+      "hidden"
+    );
   }
 
 }
@@ -89,14 +109,27 @@ function setLoading(
   text = "Please wait..."
 ) {
 
-  if ($("loadingText")) {
-    $("loadingText").textContent = text;
+  const overlay =
+    $("loadingOverlay");
+
+  const loadingText =
+    $("loadingText");
+
+  if (loadingText) {
+
+    loadingText.textContent =
+      text;
+
   }
 
   if (active) {
-    show($("loadingOverlay"));
+
+    show(overlay);
+
   } else {
-    hide($("loadingOverlay"));
+
+    hide(overlay);
+
   }
 
 }
@@ -119,7 +152,11 @@ function showStatus(
     "status-box";
 
   if (type) {
-    element.classList.add(type);
+
+    element.classList.add(
+      type
+    );
+
   }
 
   show(element);
@@ -129,20 +166,37 @@ function showStatus(
 
 function hideStatus(element) {
 
+  if (!element) {
+    return;
+  }
+
   hide(element);
 
 }
 
 
-function showScreen(screenId) {
+function showScreen(
+  screenId
+) {
 
   document
     .querySelectorAll(".screen")
-    .forEach((screen) => {
-      hide(screen);
-    });
+    .forEach(
+      (screen) => {
 
-  show($(screenId));
+        hide(screen);
+
+      }
+    );
+
+  const target =
+    $(screenId);
+
+  if (target) {
+
+    show(target);
+
+  }
 
   window.scrollTo({
     top: 0,
@@ -154,21 +208,45 @@ function showScreen(screenId) {
 
 function escapeHtml(value) {
 
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+  return String(
+    value ?? ""
+  )
+    .replace(
+      /&/g,
+      "&amp;"
+    )
+    .replace(
+      /</g,
+      "&lt;"
+    )
+    .replace(
+      />/g,
+      "&gt;"
+    )
+    .replace(
+      /"/g,
+      "&quot;"
+    )
+    .replace(
+      /'/g,
+      "&#039;"
+    );
 
 }
 
 
-function formatNumber(value) {
+function formatNumber(
+  value
+) {
 
-  return Number(value || 0)
+  return Number(
+    value || 0
+  )
     .toFixed(2)
-    .replace(/\.00$/, "");
+    .replace(
+      /\.00$/,
+      ""
+    );
 
 }
 
@@ -177,17 +255,23 @@ function formatNumber(value) {
    OPTION HELPERS
    ========================================================= */
 
-function getOptionLabels(count) {
+function getOptionLabels(
+  count
+) {
 
   return OPTION_LABELS.slice(
     0,
-    Number(count) === 2 ? 2 : 4
+    Number(count) === 2
+      ? 2
+      : 4
   );
 
 }
 
 
-function normalizeOptionCount(value) {
+function normalizeOptionCount(
+  value
+) {
 
   return Number(value) === 2
     ? 2
@@ -205,18 +289,28 @@ function generateTestCode() {
   const characters =
     "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
-  return Array
-    .from(
-      { length: 6 },
-      () =>
-        characters[
-          Math.floor(
-            Math.random() *
-            characters.length
-          )
-        ]
-    )
-    .join("");
+  let code = "";
+
+  for (
+    let i = 0;
+    i < 6;
+    i++
+  ) {
+
+    const randomIndex =
+      Math.floor(
+        Math.random() *
+        characters.length
+      );
+
+    code +=
+      characters[
+        randomIndex
+      ];
+
+  }
+
+  return code;
 
 }
 
@@ -239,15 +333,23 @@ async function generateUniqueTestCode() {
       await supabaseClient
         .from("tests")
         .select("id")
-        .eq("code", code)
+        .eq(
+          "code",
+          code
+        )
         .limit(1);
 
     if (error) {
       throw error;
     }
 
-    if (!data || data.length === 0) {
+    if (
+      !data ||
+      data.length === 0
+    ) {
+
       return code;
+
     }
 
   }
@@ -261,6 +363,7 @@ async function generateUniqueTestCode() {
 
 /* =========================================================
    CREATE TEST
+   OPTION SETTINGS
    ========================================================= */
 
 function renderOptionSettings() {
@@ -317,19 +420,29 @@ function renderOptionSettings() {
         class="question-option-count"
         data-question="${i}"
       >
+
         <option
           value="4"
-          ${defaultCount === 4 ? "selected" : ""}
+          ${
+            defaultCount === 4
+              ? "selected"
+              : ""
+          }
         >
           4 Options
         </option>
 
         <option
           value="2"
-          ${defaultCount === 2 ? "selected" : ""}
+          ${
+            defaultCount === 2
+              ? "selected"
+              : ""
+          }
         >
           2 Options
         </option>
+
       </select>
     `;
 
@@ -369,7 +482,8 @@ $("pdfFile")?.addEventListener(
   (event) => {
 
     const file =
-      event.target.files?.[0];
+      event.target
+        ?.files?.[0];
 
     const status =
       $("pdfStatus");
@@ -385,11 +499,14 @@ $("pdfFile")?.addEventListener(
     if (!file) {
 
       if (status) {
+
         status.textContent =
           "";
+
       }
 
       return;
+
     }
 
     if (
@@ -401,21 +518,29 @@ $("pdfFile")?.addEventListener(
         "";
 
       if (status) {
+
         status.textContent =
           "Please select a PDF file.";
+
+        status.style.color =
+          "#dc2626";
+
       }
 
       return;
+
     }
 
-    const url =
+    const localUrl =
       URL.createObjectURL(
         file
       );
 
     if (preview) {
+
       preview.src =
-        url;
+        localUrl;
+
     }
 
     show(previewBox);
@@ -459,7 +584,9 @@ async function uploadQuestionPaper(
   } =
     await supabaseClient
       .storage
-      .from(STORAGE_BUCKET)
+      .from(
+        STORAGE_BUCKET
+      )
       .upload(
         fileName,
         file,
@@ -484,7 +611,9 @@ async function uploadQuestionPaper(
   } =
     supabaseClient
       .storage
-      .from(STORAGE_BUCKET)
+      .from(
+        STORAGE_BUCKET
+      )
       .getPublicUrl(
         fileName
       );
@@ -542,7 +671,8 @@ function renderAnswerKey() {
 
     const labels =
       getOptionLabels(
-        currentOptions[i] || 4
+        currentOptions[i] ||
+        4
       );
 
     item.innerHTML = `
@@ -562,9 +692,11 @@ function renderAnswerKey() {
         ${labels
           .map(
             (label) =>
-              `<option value="${label}">
-                ${label}
-              </option>`
+              `
+                <option value="${label}">
+                  ${label}
+                </option>
+              `
           )
           .join("")}
 
@@ -573,10 +705,10 @@ function renderAnswerKey() {
 
     const select =
       item.querySelector(
-        "select"
+        ".answer-key-select"
       );
 
-    select.addEventListener(
+    select?.addEventListener(
       "change",
       () => {
 
@@ -622,7 +754,7 @@ $("generateBtn")?.addEventListener(
     const name =
       $("testName")
         ?.value
-        .trim();
+        ?.trim();
 
     const pdfFile =
       $("pdfFile")
@@ -641,6 +773,7 @@ $("generateBtn")?.addEventListener(
       );
 
       return;
+
     }
 
     if (!pdfFile) {
@@ -650,6 +783,7 @@ $("generateBtn")?.addEventListener(
       );
 
       return;
+
     }
 
     if (
@@ -665,6 +799,7 @@ $("generateBtn")?.addEventListener(
       );
 
       return;
+
     }
 
     currentQuestionCount =
@@ -767,23 +902,26 @@ $("saveTestBtn")?.addEventListener(
       );
 
       return;
+
     }
 
     const answerKey =
       collectAnswerKey();
 
-    if (
+    const missingAnswers =
       answerKey.some(
         (answer) =>
           !answer
-      )
-    ) {
+      );
+
+    if (missingAnswers) {
 
       alert(
         "Please select the correct answer for every question."
       );
 
       return;
+
     }
 
     const correctMark =
@@ -809,6 +947,7 @@ $("saveTestBtn")?.addEventListener(
       );
 
       return;
+
     }
 
     if (
@@ -822,6 +961,7 @@ $("saveTestBtn")?.addEventListener(
       );
 
       return;
+
     }
 
     setLoading(
@@ -1044,8 +1184,8 @@ $("joinBtn")?.addEventListener(
     const code =
       $("joinCode")
         ?.value
-        .trim()
-        .toUpperCase();
+        ?.trim()
+        ?.toUpperCase();
 
     const status =
       $("joinStatus");
@@ -1063,6 +1203,7 @@ $("joinBtn")?.addEventListener(
       );
 
       return;
+
     }
 
     setLoading(
@@ -1223,11 +1364,13 @@ function renderExam() {
 
     const labels =
       getOptionLabels(
-        currentOptions[i] || 4
+        currentOptions[i] ||
+        4
       );
 
     for (
-      const labelValue of labels
+      const labelValue
+      of labels
     ) {
 
       const label =
@@ -1360,7 +1503,10 @@ function updateProgress() {
     fill.style.width =
       `${
         total
-          ? (answered / total) * 100
+          ? (
+              answered /
+              total
+            ) * 100
           : 0
       }%`;
 
@@ -1464,14 +1610,11 @@ function calculateResult() {
       currentTest?.wrong_mark
     ) || 0;
 
-  let correct =
-    0;
+  let correct = 0;
 
-  let wrong =
-    0;
+  let wrong = 0;
 
-  let unanswered =
-    0;
+  let unanswered = 0;
 
   for (
     let i = 0;
@@ -1487,6 +1630,7 @@ function calculateResult() {
       unanswered++;
 
       continue;
+
     }
 
     if (
@@ -1525,8 +1669,7 @@ function calculateResult() {
       ? (
           score /
           totalMarks
-        ) *
-        100
+        ) * 100
       : 0;
 
   return {
@@ -1558,21 +1701,6 @@ function calculateResult() {
 
 /* =========================================================
    SAVE RESULT
-   =========================================================
-
-   Matches the result table:
-
-   test_code
-   candidate_name
-   answers
-   correct_count
-   wrong_count
-   unanswered_count
-   score
-   total_marks
-   percentage
-   submitted_at
-
    ========================================================= */
 
 async function saveExamResult(
@@ -1617,7 +1745,9 @@ async function saveExamResult(
     error
   } =
     await supabaseClient
-      .from("exam_results")
+      .from(
+        "exam_results"
+      )
       .insert(
         payload
       );
@@ -1663,7 +1793,6 @@ function renderResult(
     <div class="result-stats">
 
       <div class="result-stat">
-
         <span>
           Correct
         </span>
@@ -1671,11 +1800,9 @@ function renderResult(
         <strong>
           ${result.correct}
         </strong>
-
       </div>
 
       <div class="result-stat">
-
         <span>
           Wrong
         </span>
@@ -1683,11 +1810,9 @@ function renderResult(
         <strong>
           ${result.wrong}
         </strong>
-
       </div>
 
       <div class="result-stat">
-
         <span>
           Unanswered
         </span>
@@ -1695,11 +1820,9 @@ function renderResult(
         <strong>
           ${result.unanswered}
         </strong>
-
       </div>
 
       <div class="result-stat">
-
         <span>
           Percentage
         </span>
@@ -1707,7 +1830,6 @@ function renderResult(
         <strong>
           ${result.percentage.toFixed(2)}%
         </strong>
-
       </div>
 
     </div>
@@ -1774,6 +1896,7 @@ $("submitExamBtn")?.addEventListener(
       input?.focus();
 
       return;
+
     }
 
     const unanswered =
@@ -1834,170 +1957,181 @@ $("submitExamBtn")?.addEventListener(
 
   }
 );
+/* =========================================================
+   PDF VIEWER — PART 2
+   ========================================================= */
+
+
+/*
+  IMPORTANT
+
+  We are no longer rendering the PDF ourselves with canvas.
+
+  Instead, the official Mozilla PDF.js viewer is loaded
+  inside an iframe.
+
+  This gives us:
+
+  • Previous / Next page
+  • Zoom in / out
+  • Mobile touch support
+  • Android PDF rendering
+  • Page thumbnails
+  • Search
+  • Full-screen style PDF controls
+*/
 
 
 /* =========================================================
-   PDF.JS LOADER
+   PDF VIEWER URL
    ========================================================= */
 
-async function loadPdfJs() {
+function buildPdfViewerUrl(
+  pdfUrl
+) {
 
-  if (pdfJsModule) {
-    return pdfJsModule;
+  if (!pdfUrl) {
+    return "";
   }
 
-  try {
-
-    pdfJsModule =
-      await import(
-        PDFJS_CDN
-      );
-
-    pdfJsModule
-      .GlobalWorkerOptions
-      .workerSrc =
-      PDFJS_WORKER_CDN;
-
-    return pdfJsModule;
-
-  } catch (error) {
-
-    console.error(
-      "PDF.js failed to load:",
-      error
+  const encodedUrl =
+    encodeURIComponent(
+      pdfUrl
     );
 
-    throw new Error(
-      "Could not load the PDF viewer."
-    );
-
-  }
+  return (
+    PDFJS_VIEWER_URL +
+    `?file=${encodedUrl}`
+  );
 
 }
 
 
 /* =========================================================
-   PDF VIEWER CONTAINER
+   CREATE MOBILE PDF VIEWER
    ========================================================= */
 
-function getPdfViewerContainer() {
+function createPdfViewer() {
 
-  const existing =
-    $("pdfCanvasContainer");
+  const pdfCard =
+    document.querySelector(
+      ".pdf-card"
+    );
 
-  if (existing) {
-    return existing;
-  }
-
-  const iframe =
-    $("examPdf");
-
-  if (!iframe) {
+  if (!pdfCard) {
     return null;
   }
 
-  const wrapper =
+
+  /*
+    If our viewer already exists,
+    simply return it.
+  */
+
+  let viewer =
+    $("mobilePdfViewer");
+
+  if (viewer) {
+    return viewer;
+  }
+
+
+  /*
+    Hide the old iframe.
+
+    We keep the original element in
+    the DOM so existing HTML remains
+    compatible.
+  */
+
+  const oldIframe =
+    $("examPdf");
+
+  if (oldIframe) {
+
+    oldIframe.style.display =
+      "none";
+
+  }
+
+
+  /*
+    Create the new viewer.
+  */
+
+  viewer =
     document.createElement(
       "div"
     );
 
-  wrapper.className =
-    "pdf-viewer";
+  viewer.id =
+    "mobilePdfViewer";
 
-  wrapper.innerHTML = `
+  viewer.className =
+    "mobile-pdf-viewer";
 
-    <div class="pdf-toolbar">
 
-      <div class="pdf-toolbar-group">
+  viewer.innerHTML = `
 
-        <button
-          type="button"
-          class="pdf-control"
-          id="pdfPrevBtn"
-          title="Previous page"
-        >
-          ‹
-        </button>
+    <div
+      class="pdf-viewer-topbar"
+    >
+
+      <div
+        class="pdf-viewer-title"
+      >
 
         <span
-          class="pdf-page-info"
-          id="pdfPageInfo"
+          class="pdf-viewer-icon"
         >
-          1 / 1
+          PDF
         </span>
 
-        <button
-          type="button"
-          class="pdf-control"
-          id="pdfNextBtn"
-          title="Next page"
-        >
-          ›
-        </button>
+        <span>
+          Question Paper
+        </span>
 
       </div>
 
 
-      <div class="pdf-toolbar-group">
-
-        <button
-          type="button"
-          class="pdf-control"
-          id="pdfZoomOutBtn"
-          title="Zoom out"
-        >
-          −
-        </button>
-
-        <span
-          class="pdf-zoom-value"
-          id="pdfZoomValue"
-        >
-          100%
-        </span>
-
-        <button
-          type="button"
-          class="pdf-control"
-          id="pdfZoomInBtn"
-          title="Zoom in"
-        >
-          +
-        </button>
-
-      </div>
+      <button
+        type="button"
+        id="pdfFullscreenBtn"
+        class="pdf-viewer-action"
+        title="Open PDF viewer"
+      >
+        ⛶
+      </button>
 
     </div>
 
 
     <div
-      class="pdf-canvas-container"
-      id="pdfCanvasContainer"
+      class="pdf-viewer-frame-wrap"
     >
 
-      <div
-        class="pdf-loading"
-        id="pdfLoading"
+      <iframe
+        id="pdfViewerFrame"
+        title="Question Paper PDF"
+        class="pdf-viewer-frame"
+        allowfullscreen
+        loading="eager"
       >
-        Loading question paper...
-      </div>
-
-      <canvas
-        id="pdfCanvas"
-      ></canvas>
+      </iframe>
 
     </div>
 
 
-    <div class="pdf-viewer-footer">
+    <div
+      class="pdf-viewer-bottom"
+    >
 
       <span>
-        Question Paper
+        Use PDF controls to zoom and change pages.
       </span>
 
       <a
-        id="pdfOpenFallback"
-        class="pdf-open-fallback"
+        id="pdfExternalLink"
         target="_blank"
         rel="noopener noreferrer"
       >
@@ -2008,185 +2142,114 @@ function getPdfViewerContainer() {
 
   `;
 
-  iframe.style.display =
-    "none";
 
-  iframe.parentNode.insertBefore(
-    wrapper,
-    iframe
-  );
+  /*
+    Insert our viewer immediately before
+    the original iframe.
+  */
 
-  attachPdfControls();
+  if (oldIframe) {
 
-  return $(
-    "pdfCanvasContainer"
-  );
+    oldIframe.parentNode.insertBefore(
+      viewer,
+      oldIframe
+    );
 
-}
+  } else {
 
+    pdfCard.appendChild(
+      viewer
+    );
 
-/* =========================================================
-   PDF CONTROLS
-   ========================================================= */
-
-function attachPdfControls() {
-
-  $("pdfPrevBtn")?.addEventListener(
-    "click",
-    () => {
-
-      if (
-        !currentPdfDocument ||
-        currentPdfPage <= 1
-      ) {
-
-        return;
-
-      }
-
-      currentPdfPage--;
-
-      renderPdfPage(
-        currentPdfPage
-      );
-
-    }
-  );
+  }
 
 
-  $("pdfNextBtn")?.addEventListener(
-    "click",
-    () => {
+  attachPdfViewerControls();
 
-      if (
-        !currentPdfDocument ||
-        currentPdfPage >=
-          currentPdfDocument.numPages
-      ) {
-
-        return;
-
-      }
-
-      currentPdfPage++;
-
-      renderPdfPage(
-        currentPdfPage
-      );
-
-    }
-  );
-
-
-  $("pdfZoomOutBtn")?.addEventListener(
-    "click",
-    () => {
-
-      currentPdfScale =
-        Math.max(
-          0.5,
-          Math.round(
-            (
-              currentPdfScale -
-              0.1
-            ) *
-            100
-          ) /
-            100
-        );
-
-      updatePdfZoomText();
-
-      renderPdfPage(
-        currentPdfPage
-      );
-
-    }
-  );
-
-
-  $("pdfZoomInBtn")?.addEventListener(
-    "click",
-    () => {
-
-      currentPdfScale =
-        Math.min(
-          3,
-          Math.round(
-            (
-              currentPdfScale +
-              0.1
-            ) *
-            100
-          ) /
-            100
-        );
-
-      updatePdfZoomText();
-
-      renderPdfPage(
-        currentPdfPage
-      );
-
-    }
-  );
+  return viewer;
 
 }
 
 
 /* =========================================================
-   INITIAL PDF SCALE
+   PDF VIEWER CONTROLS
    ========================================================= */
 
-async function getInitialPdfScale() {
+function attachPdfViewerControls() {
 
-  const container =
-    $("pdfCanvasContainer");
+  const fullscreenButton =
+    $("pdfFullscreenBtn");
 
   if (
-    !container ||
-    !currentPdfDocument
+    fullscreenButton &&
+    !fullscreenButton.dataset.bound
   ) {
 
-    return 1;
+    fullscreenButton.dataset.bound =
+      "true";
+
+
+    fullscreenButton.addEventListener(
+      "click",
+      () => {
+
+        const frame =
+          $("pdfViewerFrame");
+
+        if (!frame) {
+          return;
+        }
+
+
+        /*
+          On Android browsers, opening the
+          PDF.js viewer in a new browser
+          context gives the user a reliable
+          full-screen style PDF experience.
+
+          The existing exam page remains
+          unchanged.
+        */
+
+        if (currentPdfUrl) {
+
+          const viewerUrl =
+            buildPdfViewerUrl(
+              currentPdfUrl
+            );
+
+          window.open(
+            viewerUrl,
+            "_blank",
+            "noopener,noreferrer"
+          );
+
+        }
+
+      }
+    );
 
   }
 
-  try {
 
-    const page =
-      await currentPdfDocument
-        .getPage(1);
+  const externalLink =
+    $("pdfExternalLink");
 
-    const viewport =
-      page.getViewport({
-        scale: 1
-      });
+  if (externalLink) {
 
-    const availableWidth =
-      Math.max(
-        280,
-        container.clientWidth -
-          36
-      );
+    externalLink.addEventListener(
+      "click",
+      () => {
 
-    return Math.max(
-      0.5,
-      Math.min(
-        1.5,
-        availableWidth /
-          viewport.width
-      )
+        if (currentPdfUrl) {
+
+          externalLink.href =
+            currentPdfUrl;
+
+        }
+
+      }
     );
-
-  } catch (error) {
-
-    console.warn(
-      "Could not calculate initial PDF scale:",
-      error
-    );
-
-    return 1;
 
   }
 
@@ -2194,154 +2257,283 @@ async function getInitialPdfScale() {
 
 
 /* =========================================================
-   INITIALIZE PDF VIEWER
+   LOAD PDF INTO VIEWER
+   ========================================================= */
+
+function loadPdfIntoViewer(
+  pdfUrl
+) {
+
+  if (!pdfUrl) {
+
+    console.error(
+      "No PDF URL supplied."
+    );
+
+    return;
+
+  }
+
+
+  const viewer =
+    createPdfViewer();
+
+  if (!viewer) {
+
+    console.error(
+      "Could not create PDF viewer."
+    );
+
+    return;
+
+  }
+
+
+  const frame =
+    $("pdfViewerFrame");
+
+  if (!frame) {
+
+    console.error(
+      "PDF viewer iframe not found."
+    );
+
+    return;
+
+  }
+
+
+  /*
+    Build official PDF.js viewer URL.
+
+    Example:
+
+    https://mozilla.github.io/pdf.js/web/viewer.html
+      ?file=https%3A%2F%2F...
+
+  */
+
+  const viewerUrl =
+    buildPdfViewerUrl(
+      pdfUrl
+    );
+
+
+  /*
+    Avoid reloading the exact same PDF
+    unnecessarily.
+  */
+
+  if (
+    frame.dataset.pdfUrl ===
+    pdfUrl
+  ) {
+
+    return;
+
+  }
+
+
+  frame.dataset.pdfUrl =
+    pdfUrl;
+
+
+  /*
+    Set source.
+
+    The PDF.js viewer itself handles
+    page navigation and zoom.
+  */
+
+  frame.src =
+    viewerUrl;
+
+
+  /*
+    Also update the direct PDF link.
+  */
+
+  const externalLink =
+    $("pdfExternalLink");
+
+  if (externalLink) {
+
+    externalLink.href =
+      pdfUrl;
+
+  }
+
+}
+
+
+/* =========================================================
+   PDF VIEWER INITIALIZATION
    ========================================================= */
 
 async function initializePdfViewer(
-  url
+  pdfUrl
 ) {
 
   currentPdfUrl =
-    url;
+    pdfUrl;
+
+  currentPdfPage =
+    1;
+
+  currentPdfScale =
+    1;
+
+
+  if (!pdfUrl) {
+
+    throw new Error(
+      "Question paper PDF URL is missing."
+    );
+
+  }
+
+
+  /*
+    Create viewer and load PDF.
+  */
+
+  loadPdfIntoViewer(
+    pdfUrl
+  );
+
+
+  /*
+    Give the iframe a moment to start loading.
+  */
+
+  await new Promise(
+    (resolve) => {
+
+      setTimeout(
+        resolve,
+        150
+      );
+
+    }
+  );
+
+}
+
+
+/* =========================================================
+   PDF VIEWER REFRESH
+   ========================================================= */
+
+function refreshPdfViewer() {
+
+  const frame =
+    $("pdfViewerFrame");
+
+  if (!frame) {
+    return;
+  }
+
+  if (!currentPdfUrl) {
+    return;
+  }
+
+
+  /*
+    Force a fresh PDF.js viewer
+    instance.
+
+    This is useful when the same
+    exam is opened again.
+  */
+
+  frame.dataset.pdfUrl =
+    "";
+
+  frame.src =
+    buildPdfViewerUrl(
+      currentPdfUrl
+    );
+
+}
+
+
+/* =========================================================
+   PDF VIEWER CLEANUP
+   ========================================================= */
+
+function destroyPdfViewer() {
+
+  const frame =
+    $("pdfViewerFrame");
+
+  if (frame) {
+
+    frame.src =
+      "about:blank";
+
+    frame.dataset.pdfUrl =
+      "";
+
+  }
+
+  currentPdfUrl =
+    "";
 
   currentPdfDocument =
     null;
 
-  pdfRendering =
-    false;
+  currentPdfPage =
+    1;
 
-  pendingPdfRender =
-    null;
+  currentPdfScale =
+    1;
 
-  pdfRenderToken++;
+}
 
-  const container =
-    getPdfViewerContainer();
 
-  if (!container) {
+/* =========================================================
+   PDF FULLSCREEN FALLBACK
+   ========================================================= */
+
+function openPdfDirectly() {
+
+  if (!currentPdfUrl) {
+
+    alert(
+      "Question paper PDF is not available."
+    );
+
     return;
+
   }
+
 
   /*
-    IMPORTANT FOR MOBILE / ANDROID:
-    The canvas itself can become larger than the
-    viewer when zoomed.
+    Try PDF.js first.
   */
 
-  container.style.overflow =
-    "auto";
-
-  container.style.webkitOverflowScrolling =
-    "touch";
-
-  const loading =
-    $("pdfLoading");
-
-  const canvas =
-    $("pdfCanvas");
-
-  if (loading) {
-
-    loading.innerHTML =
-      "Loading question paper...";
-
-    show(loading);
-
-  }
-
-  if (canvas) {
-
-    canvas.style.display =
-      "none";
-
-  }
-
-  try {
-
-    const pdfjsLib =
-      await loadPdfJs();
-
-    const token =
-      pdfRenderToken;
-
-    const documentProxy =
-      await pdfjsLib
-        .getDocument({
-          url,
-          withCredentials:
-            false
-        })
-        .promise;
-
-    if (
-      token !==
-      pdfRenderToken
-    ) {
-
-      return;
-
-    }
-
-    currentPdfDocument =
-      documentProxy;
-
-    currentPdfPage =
-      1;
-
-    currentPdfScale =
-      await getInitialPdfScale();
-
-    updatePdfZoomText();
-
-    const fallback =
-      $("pdfOpenFallback");
-
-    if (fallback) {
-
-      fallback.href =
-        url;
-
-    }
-
-    await renderPdfPage(
-      1
+  const viewerUrl =
+    buildPdfViewerUrl(
+      currentPdfUrl
     );
 
-  } catch (error) {
 
-    console.error(
-      "PDF viewer error:",
-      error
+  const newWindow =
+    window.open(
+      viewerUrl,
+      "_blank"
     );
 
-    if (loading) {
 
-      loading.innerHTML = `
-        <strong>
-          PDF preview unavailable
-        </strong>
+  /*
+    If browser blocks popup,
+    use direct PDF URL.
+  */
 
-        <span>
-          Use "Open PDF" to view it.
-        </span>
-      `;
+  if (!newWindow) {
 
-      show(loading);
-
-    }
-
-    const iframe =
-      $("examPdf");
-
-    if (iframe) {
-
-      iframe.style.display =
-        "block";
-
-      iframe.src =
-        url;
-
-    }
+    window.location.href =
+      currentPdfUrl;
 
   }
 
@@ -2349,65 +2541,141 @@ async function initializePdfViewer(
 
 
 /* =========================================================
-   RENDER PDF PAGE
+   PDF VIEWER MESSAGE LISTENER
    =========================================================
 
-   THIS IS THE IMPORTANT FIX.
+   PDF.js is running inside an iframe.
 
-   The old code automatically fitted every viewport
-   back to the available container width.
+   We don't control its internal DOM because
+   it belongs to another document/origin.
 
-   Therefore:
-
-   100% → click + → 110%
-   → code immediately reduced it back to fit width.
-
-   So zoom appeared not to work.
-
-   This version DOES NOT do that.
+   This listener is intentionally lightweight
+   and does NOT modify the viewer.
 
    ========================================================= */
 
-async function renderPdfPage(
-  pageNumber
+window.addEventListener(
+  "message",
+  (event) => {
+
+    if (
+      !event ||
+      !event.data
+    ) {
+
+      return;
+
+    }
+
+
+    /*
+      Keep this listener defensive.
+
+      Different PDF.js versions may send
+      different messages.
+    */
+
+    if (
+      typeof event.data !==
+      "object"
+    ) {
+
+      return;
+
+    }
+
+  }
+);
+
+
+/* =========================================================
+   PDF VIEWER ERROR FALLBACK
+   ========================================================= */
+
+function showPdfFallback(
+  message
 ) {
 
-  if (!currentPdfDocument) {
+  const viewer =
+    $("mobilePdfViewer");
+
+  if (!viewer) {
     return;
   }
 
 
-  /*
-    If a render is already running,
-    remember the newest request instead
-    of simply ignoring the click.
-  */
+  const wrap =
+    viewer.querySelector(
+      ".pdf-viewer-frame-wrap"
+    );
 
-  if (pdfRendering) {
-
-    pendingPdfRender = {
-
-      pageNumber,
-
-      scale:
-        currentPdfScale
-
-    };
-
+  if (!wrap) {
     return;
-
   }
 
 
-  const canvas =
-    $("pdfCanvas");
+  wrap.innerHTML = `
 
-  const container =
-    $("pdfCanvasContainer");
+    <div
+      class="pdf-fallback"
+    >
+
+      <div
+        class="pdf-fallback-icon"
+      >
+        PDF
+      </div>
+
+      <h3>
+        Question Paper
+      </h3>
+
+      <p>
+        ${escapeHtml(
+          message ||
+          "The PDF preview could not be loaded."
+        )}
+      </p>
+
+      <button
+        type="button"
+        id="pdfFallbackOpenBtn"
+        class="primary-btn"
+      >
+        Open Question Paper
+      </button>
+
+    </div>
+
+  `;
+
+
+  $("pdfFallbackOpenBtn")
+    ?.addEventListener(
+      "click",
+      openPdfDirectly
+    );
+
+}
+
+
+/* =========================================================
+   PDF FRAME LOAD EVENT
+   ========================================================= */
+
+function bindPdfFrameEvents() {
+
+  const frame =
+    $("pdfViewerFrame");
+
+  if (!frame) {
+    return;
+  }
+
 
   if (
-    !canvas ||
-    !container
+    frame.dataset.eventsBound ===
+    "true"
   ) {
 
     return;
@@ -2415,320 +2683,437 @@ async function renderPdfPage(
   }
 
 
-  pdfRendering =
-    true;
+  frame.dataset.eventsBound =
+    "true";
 
-  const documentAtStart =
-    currentPdfDocument;
 
-  const tokenAtStart =
-    pdfRenderToken;
+  frame.addEventListener(
+    "load",
+    () => {
 
-  const targetPage =
-    Math.max(
-      1,
-      Math.min(
-        pageNumber,
-        documentAtStart.numPages
-      )
+      /*
+        The viewer has loaded.
+
+        We deliberately don't try to
+        access its internal DOM because
+        cross-origin iframe restrictions
+        would make that unreliable.
+      */
+
+      console.log(
+        "PDF.js viewer loaded."
+      );
+
+    }
+  );
+
+
+  frame.addEventListener(
+    "error",
+    () => {
+
+      showPdfFallback(
+        "The PDF viewer could not be loaded on this device."
+      );
+
+    }
+  );
+
+}
+
+
+/* =========================================================
+   EXAM PDF SETUP
+   ========================================================= */
+
+function setupExamPdf() {
+
+  const viewer =
+    createPdfViewer();
+
+  if (!viewer) {
+    return;
+  }
+
+  bindPdfFrameEvents();
+
+}
+
+
+/* =========================================================
+   CANDIDATE NAME
+   ========================================================= */
+
+function ensureCandidateNameInput() {
+
+  if ($("candidateName")) {
+    return;
+  }
+
+  const examScreen =
+    $("examScreen");
+
+  if (!examScreen) {
+    return;
+  }
+
+  const header =
+    examScreen.querySelector(
+      ".exam-header"
     );
 
-  const targetScale =
-    currentPdfScale;
+  if (!header) {
+    return;
+  }
+
+  const wrapper =
+    document.createElement(
+      "div"
+    );
+
+  wrapper.className =
+    "candidate-bar card";
+
+  wrapper.innerHTML = `
+
+    <div
+      class="candidate-bar-icon"
+    >
+      👤
+    </div>
+
+    <div
+      class="candidate-bar-info"
+    >
+
+      <label
+        class="form-label"
+      >
+        Candidate Name
+      </label>
+
+      <p>
+        Enter your name before submitting the exam.
+      </p>
+
+    </div>
+
+    <input
+      id="candidateName"
+      type="text"
+      maxlength="100"
+      autocomplete="name"
+      placeholder="Enter your full name"
+    >
+
+  `;
 
 
-  try {
+  header.parentNode.insertBefore(
+    wrapper,
+    header.nextSibling
+  );
 
-    const page =
-      await documentAtStart
-        .getPage(
-          targetPage
+}
+
+
+/* =========================================================
+   JOIN TEST — PDF VIEWER VERSION
+   ========================================================= */
+
+async function openExamWithTest(
+  test
+) {
+
+  currentTest =
+    test;
+
+
+  currentQuestionCount =
+    Number(
+      test.question_count
+    );
+
+
+  currentOptions =
+    Array.isArray(
+      test.options
+    )
+      ? test.options.map(
+          normalizeOptionCount
+        )
+      : new Array(
+          currentQuestionCount
+        ).fill(4);
+
+
+  currentAnswerKey =
+    Array.isArray(
+      test.answer_key
+    )
+      ? test.answer_key
+      : [];
+
+
+  selectedAnswers =
+    new Array(
+      currentQuestionCount
+    ).fill("");
+
+
+  candidateName =
+    "";
+
+
+  if ($("examName")) {
+
+    $("examName")
+      .textContent =
+      test.name;
+
+  }
+
+
+  if ($("examInfo")) {
+
+    $("examInfo")
+      .textContent =
+      `${currentQuestionCount} Questions • Code: ${test.code}`;
+
+  }
+
+
+  /*
+    Make sure candidate field exists.
+  */
+
+  ensureCandidateNameInput();
+
+
+  if ($("candidateName")) {
+
+    $("candidateName")
+      .value =
+      "";
+
+  }
+
+
+  /*
+    IMPORTANT:
+
+    Load PDF into the new PDF.js
+    iframe viewer.
+
+    We do NOT use:
+
+      iframe.src = pdf_url
+
+    because Android may open the
+    browser's external PDF handler.
+
+    Instead:
+
+      pdf_url
+        ↓
+      Mozilla PDF.js viewer
+        ↓
+      iframe
+  */
+
+  await initializePdfViewer(
+    test.pdf_url
+  );
+
+
+  setupExamPdf();
+
+
+  renderExam();
+
+
+  showScreen(
+    "examScreen"
+  );
+
+}
+
+
+/* =========================================================
+   JOIN BUTTON
+   ========================================================= */
+
+$("joinBtn")?.addEventListener(
+  "click",
+  async () => {
+
+    const code =
+      $("joinCode")
+        ?.value
+        ?.trim()
+        ?.toUpperCase();
+
+
+    const status =
+      $("joinStatus");
+
+
+    hideStatus(
+      status
+    );
+
+
+    if (!code) {
+
+      showStatus(
+        status,
+        "Please enter the test code.",
+        "error"
+      );
+
+      return;
+
+    }
+
+
+    setLoading(
+      true,
+      "Loading test..."
+    );
+
+
+    try {
+
+      const test =
+        await loadTestByCode(
+          code
         );
 
-    if (
-      tokenAtStart !==
-        pdfRenderToken ||
-      documentAtStart !==
-        currentPdfDocument
-    ) {
 
-      return;
-
-    }
-
-
-    /*
-      DO NOT FIT TO CONTAINER.
-
-      This is what makes zoom actually work.
-    */
-
-    const viewport =
-      page.getViewport({
-        scale:
-          targetScale
-      });
-
-
-    const deviceScale =
-      Math.min(
-        window.devicePixelRatio ||
-          1,
-        2
+      await openExamWithTest(
+        test
       );
 
 
-    canvas.width =
-      Math.max(
-        1,
-        Math.floor(
-          viewport.width *
-            deviceScale
-        )
-      );
+    } catch (error) {
 
-    canvas.height =
-      Math.max(
-        1,
-        Math.floor(
-          viewport.height *
-            deviceScale
-        )
+      console.error(
+        error
       );
 
 
-    canvas.style.width =
-      `${viewport.width}px`;
-
-    canvas.style.height =
-      `${viewport.height}px`;
-
-
-    const context =
-      canvas.getContext(
-        "2d"
+      showStatus(
+        status,
+        error.message ||
+          "Could not load the test.",
+        "error"
       );
 
-    if (!context) {
 
-      throw new Error(
-        "Could not create PDF canvas context."
+    } finally {
+
+      setLoading(
+        false
       );
-
-    }
-
-
-    context.setTransform(
-      deviceScale,
-      0,
-      0,
-      deviceScale,
-      0,
-      0
-    );
-
-
-    context.clearRect(
-      0,
-      0,
-      canvas.width,
-      canvas.height
-    );
-
-
-    await page.render({
-
-      canvasContext:
-        context,
-
-      viewport
-
-    }).promise;
-
-
-    if (
-      tokenAtStart !==
-        pdfRenderToken ||
-      documentAtStart !==
-        currentPdfDocument
-    ) {
-
-      return;
-
-    }
-
-
-    currentPdfPage =
-      targetPage;
-
-    currentPdfScale =
-      targetScale;
-
-
-    canvas.style.display =
-      "block";
-
-
-    hide(
-      $("pdfLoading")
-    );
-
-
-    if ($("pdfPageInfo")) {
-
-      $("pdfPageInfo")
-        .textContent =
-        `${currentPdfPage} / ${currentPdfDocument.numPages}`;
-
-    }
-
-
-    updatePdfButtons();
-
-    updatePdfZoomText();
-
-
-  } catch (error) {
-
-    console.error(
-      "PDF page render error:",
-      error
-    );
-
-  } finally {
-
-    pdfRendering =
-      false;
-
-
-    /*
-      If user clicked next/zoom while
-      rendering was happening, render
-      the latest requested state now.
-    */
-
-    if (
-      pendingPdfRender &&
-      documentAtStart ===
-        currentPdfDocument
-    ) {
-
-      const pending =
-        pendingPdfRender;
-
-      pendingPdfRender =
-        null;
-
-      currentPdfScale =
-        pending.scale;
-
-      requestAnimationFrame(
-        () => {
-
-          renderPdfPage(
-            pending.pageNumber
-          );
-
-        }
-      );
-
-    } else {
-
-      pendingPdfRender =
-        null;
 
     }
 
   }
-
-}
+);
 
 
 /* =========================================================
-   PDF BUTTON STATE
+   EXAM EXIT
    ========================================================= */
 
-function updatePdfButtons() {
+$("exitExamBtn")?.addEventListener(
+  "click",
+  () => {
 
-  const prev =
-    $("pdfPrevBtn");
+    const answered =
+      selectedAnswers.filter(
+        Boolean
+      ).length;
 
-  const next =
-    $("pdfNextBtn");
+
+    if (
+      answered > 0
+    ) {
+
+      const confirmed =
+        confirm(
+          "You have selected some answers.\n\nExit the exam?"
+        );
 
 
-  if (prev) {
+      if (!confirmed) {
+        return;
+      }
 
-    prev.disabled =
-      !currentPdfDocument ||
-      currentPdfPage <= 1;
+    }
+
+
+    destroyPdfViewer();
+
+
+    currentTest =
+      null;
+
+    currentOptions =
+      [];
+
+    currentAnswerKey =
+      [];
+
+    selectedAnswers =
+      [];
+
+    candidateName =
+      "";
+
+
+    showScreen(
+      "homeScreen"
+    );
 
   }
-
-
-  if (next) {
-
-    next.disabled =
-      !currentPdfDocument ||
-      currentPdfPage >=
-        currentPdfDocument.numPages;
-
-  }
-
-}
+);
 
 
 /* =========================================================
-   PDF ZOOM TEXT
+   PDF VIEWER MOBILE RESIZE
    ========================================================= */
 
-function updatePdfZoomText() {
-
-  const zoom =
-    $("pdfZoomValue");
-
-  if (zoom) {
-
-    zoom.textContent =
-      `${Math.round(
-        currentPdfScale *
-          100
-      )}%`;
-
-  }
-
-}
-
-
-/* =========================================================
-   PDF RESIZE
-   ========================================================= */
-
-let pdfResizeTimer =
+let pdfResizeTimeout =
   null;
+
 
 window.addEventListener(
   "resize",
   () => {
 
     clearTimeout(
-      pdfResizeTimer
+      pdfResizeTimeout
     );
 
-    pdfResizeTimer =
+
+    pdfResizeTimeout =
       setTimeout(
         () => {
 
-          if (
-            currentPdfDocument &&
-            !pdfRendering
-          ) {
+          const frame =
+            $("pdfViewerFrame");
 
-            renderPdfPage(
-              currentPdfPage
-            );
-
+          if (!frame) {
+            return;
           }
+
+          /*
+            Don't reload the PDF on resize.
+
+            PDF.js internally handles its
+            own responsive layout.
+          */
 
         },
         250
@@ -2739,64 +3124,998 @@ window.addEventListener(
 
 
 /* =========================================================
-   COPY TEST CODE
+   PDF VIEWER VISIBILITY
    ========================================================= */
 
-$("copyCodeBtn")?.addEventListener(
+document.addEventListener(
+  "visibilitychange",
+  () => {
+
+    if (
+      document.visibilityState !==
+      "visible"
+    ) {
+
+      return;
+
+    }
+
+
+    /*
+      Don't reload the viewer when
+      returning to the tab/app.
+
+      This prevents losing the current
+      PDF page unnecessarily.
+    */
+
+  }
+);
+
+
+/* =========================================================
+   END OF PART 2
+   ========================================================= */
+   /* =========================================================
+   EXAM OMR — PART 3
+   ========================================================= */
+
+
+/* =========================================================
+   OMR RENDERING
+   ========================================================= */
+
+function renderExam() {
+
+  const container =
+    $("examGrid");
+
+  if (!container) {
+    return;
+  }
+
+  container.innerHTML =
+    "";
+
+  selectedAnswers =
+    new Array(
+      currentQuestionCount
+    ).fill("");
+
+  for (
+    let i = 0;
+    i < currentQuestionCount;
+    i++
+  ) {
+
+    const row =
+      document.createElement(
+        "div"
+      );
+
+    row.className =
+      "exam-question";
+
+
+    /* -------------------------
+       QUESTION NUMBER
+       ------------------------- */
+
+    const number =
+      document.createElement(
+        "div"
+      );
+
+    number.className =
+      "question-number";
+
+    number.textContent =
+      i + 1;
+
+    row.appendChild(
+      number
+    );
+
+
+    /* -------------------------
+       OPTIONS
+       ------------------------- */
+
+    const optionCount =
+      currentOptions[i] || 4;
+
+    const labels =
+      getOptionLabels(
+        optionCount
+      );
+
+
+    for (
+      let j = 0;
+      j < labels.length;
+      j++
+    ) {
+
+      const value =
+        labels[j];
+
+
+      const label =
+        document.createElement(
+          "label"
+        );
+
+      label.className =
+        "answer-option";
+
+
+      const input =
+        document.createElement(
+          "input"
+        );
+
+      input.type =
+        "radio";
+
+      input.name =
+        `question-${i}`;
+
+      input.value =
+        value;
+
+      input.dataset.question =
+        String(i);
+
+
+      input.addEventListener(
+        "change",
+        () => {
+
+          selectedAnswers[i] =
+            input.value;
+
+
+          updateSelectedOption(
+            i,
+            input.value
+          );
+
+
+          updateProgress();
+
+        }
+      );
+
+
+      const text =
+        document.createElement(
+          "span"
+        );
+
+      text.textContent =
+        value;
+
+
+      label.appendChild(
+        input
+      );
+
+      label.appendChild(
+        text
+      );
+
+
+      row.appendChild(
+        label
+      );
+
+    }
+
+
+    container.appendChild(
+      row
+    );
+
+  }
+
+
+  updateProgress();
+
+}
+
+
+/* =========================================================
+   SELECTED OPTION UI
+   ========================================================= */
+
+function updateSelectedOption(
+  questionIndex,
+  selectedValue
+) {
+
+  const inputs =
+    document.querySelectorAll(
+      `input[name="question-${questionIndex}"]`
+    );
+
+
+  inputs.forEach(
+    (input) => {
+
+      const label =
+        input.closest(
+          ".answer-option"
+        );
+
+
+      if (!label) {
+        return;
+      }
+
+
+      if (
+        input.value ===
+        selectedValue
+      ) {
+
+        label.classList.add(
+          "selected"
+        );
+
+      } else {
+
+        label.classList.remove(
+          "selected"
+        );
+
+      }
+
+    }
+  );
+
+}
+
+
+/* =========================================================
+   PROGRESS
+   ========================================================= */
+
+function updateProgress() {
+
+  const answered =
+    selectedAnswers.filter(
+      Boolean
+    ).length;
+
+
+  const total =
+    currentQuestionCount;
+
+
+  const progress =
+    $("questionProgress");
+
+
+  if (progress) {
+
+    progress.textContent =
+      `${answered} / ${total}`;
+
+  }
+
+
+  /*
+    Optional progress bar support.
+    If the enhanced HTML/CSS contains
+    one, it will automatically update.
+  */
+
+  const progressFill =
+    document.querySelector(
+      ".progress-fill"
+    );
+
+
+  if (progressFill) {
+
+    const percentage =
+      total > 0
+        ? (
+            answered /
+            total
+          ) * 100
+        : 0;
+
+
+    progressFill.style.width =
+      `${percentage}%`;
+
+  }
+
+
+  const progressNumber =
+    document.querySelector(
+      ".omr-progress strong"
+    );
+
+
+  if (progressNumber) {
+
+    progressNumber.textContent =
+      `${answered}/${total}`;
+
+  }
+
+}
+
+
+/* =========================================================
+   RESET ANSWERS
+   ========================================================= */
+
+function resetExamAnswers() {
+
+  selectedAnswers =
+    new Array(
+      currentQuestionCount
+    ).fill("");
+
+
+  document
+    .querySelectorAll(
+      ".answer-option input"
+    )
+    .forEach(
+      (input) => {
+
+        input.checked =
+          false;
+
+      }
+    );
+
+
+  document
+    .querySelectorAll(
+      ".answer-option.selected"
+    )
+    .forEach(
+      (label) => {
+
+        label.classList.remove(
+          "selected"
+        );
+
+      }
+    );
+
+
+  hide(
+    $("resultBox")
+  );
+
+
+  updateProgress();
+
+}
+
+
+/* =========================================================
+   RESET BUTTON
+   ========================================================= */
+
+$("resetExamBtn")?.addEventListener(
   "click",
-  async () => {
+  () => {
 
-    const code =
-      $("createdCode")
-        ?.textContent
-        .trim();
+    const answered =
+      selectedAnswers.filter(
+        Boolean
+      ).length;
 
-    if (!code) {
+
+    if (
+      answered === 0
+    ) {
+
+      return;
+
+    }
+
+
+    const confirmed =
+      confirm(
+        "Delete all selected answers?"
+      );
+
+
+    if (!confirmed) {
       return;
     }
 
-    try {
 
-      await navigator.clipboard.writeText(
-        code
+    resetExamAnswers();
+
+  }
+);
+
+
+/* =========================================================
+   RESULT CALCULATION
+   ========================================================= */
+
+function calculateResult() {
+
+  const answerKey =
+    Array.isArray(
+      currentTest?.answer_key
+    )
+      ? currentTest.answer_key
+      : [];
+
+
+  const correctMark =
+    Number(
+      currentTest?.correct_mark
+    ) || 0;
+
+
+  const wrongMark =
+    Number(
+      currentTest?.wrong_mark
+    ) || 0;
+
+
+  let correct =
+    0;
+
+
+  let wrong =
+    0;
+
+
+  let unanswered =
+    0;
+
+
+  for (
+    let i = 0;
+    i < currentQuestionCount;
+    i++
+  ) {
+
+    const selected =
+      selectedAnswers[i];
+
+
+    const correctAnswer =
+      answerKey[i];
+
+
+    if (!selected) {
+
+      unanswered++;
+
+      continue;
+
+    }
+
+
+    if (
+      selected ===
+      correctAnswer
+    ) {
+
+      correct++;
+
+    } else {
+
+      wrong++;
+
+    }
+
+  }
+
+
+  const score =
+    (
+      correct *
+      correctMark
+    ) -
+    (
+      wrong *
+      Math.abs(
+        wrongMark
+      )
+    );
+
+
+  const totalMarks =
+    currentQuestionCount *
+    correctMark;
+
+
+  const percentage =
+    totalMarks > 0
+      ? (
+          score /
+          totalMarks
+        ) * 100
+      : 0;
+
+
+  return {
+
+    candidateName,
+
+    testCode:
+      currentTest.code,
+
+    correct,
+
+    wrong,
+
+    unanswered,
+
+    score,
+
+    totalMarks,
+
+    percentage,
+
+    answers:
+      selectedAnswers.slice()
+
+  };
+
+}
+
+
+/* =========================================================
+   SAVE EXAM RESULT
+   ========================================================= */
+
+async function saveExamResult(
+  result
+) {
+
+  if (!result) {
+
+    throw new Error(
+      "Result data is missing."
+    );
+
+  }
+
+
+  const payload = {
+
+    test_code:
+      result.testCode,
+
+    candidate_name:
+      result.candidateName,
+
+    answers:
+      result.answers,
+
+    correct_count:
+      result.correct,
+
+    wrong_count:
+      result.wrong,
+
+    unanswered_count:
+      result.unanswered,
+
+    score:
+      result.score,
+
+    total_marks:
+      result.totalMarks,
+
+    percentage:
+      result.percentage,
+
+    submitted_at:
+      new Date().toISOString()
+
+  };
+
+
+  const {
+    error
+  } =
+    await supabaseClient
+      .from(
+        "exam_results"
+      )
+      .insert(
+        payload
       );
 
-      const button =
-        $("copyCodeBtn");
 
-      const oldText =
-        button?.textContent;
+  if (error) {
 
-      if (button) {
+    throw error;
 
-        button.textContent =
-          "Copied ✓";
+  }
 
-      }
+}
+
+
+/* =========================================================
+   RESULT UI
+   ========================================================= */
+
+function renderResult(
+  result
+) {
+
+  const resultBox =
+    $("resultBox");
+
+
+  if (!resultBox) {
+    return;
+  }
+
+
+  resultBox.innerHTML = `
+
+    <div class="result-title">
+      Result
+    </div>
+
+
+    <p>
+      <strong>
+        ${escapeHtml(
+          result.candidateName
+        )}
+      </strong>
+
+      <br>
+
+      ${escapeHtml(
+        currentTest?.name ||
+        "Exam"
+      )}
+    </p>
+
+
+    <div class="result-stats">
+
+
+      <div class="result-stat">
+
+        <span>
+          Correct
+        </span>
+
+        <strong>
+          ${result.correct}
+        </strong>
+
+      </div>
+
+
+      <div class="result-stat">
+
+        <span>
+          Wrong
+        </span>
+
+        <strong>
+          ${result.wrong}
+        </strong>
+
+      </div>
+
+
+      <div class="result-stat">
+
+        <span>
+          Unanswered
+        </span>
+
+        <strong>
+          ${result.unanswered}
+        </strong>
+
+      </div>
+
+
+      <div class="result-stat">
+
+        <span>
+          Percentage
+        </span>
+
+        <strong>
+          ${result.percentage.toFixed(
+            2
+          )}%
+        </strong>
+
+      </div>
+
+
+    </div>
+
+
+    <div class="score-display">
+
+      <span>
+        Score
+      </span>
+
+      <strong>
+
+        ${formatNumber(
+          result.score
+        )}
+
+        /
+
+        ${formatNumber(
+          result.totalMarks
+        )}
+
+      </strong>
+
+    </div>
+
+  `;
+
+
+  show(
+    resultBox
+  );
+
+
+  resultBox.scrollIntoView({
+    behavior:
+      "smooth",
+
+    block:
+      "nearest"
+  });
+
+}
+
+
+/* =========================================================
+   SUBMIT EXAM
+   ========================================================= */
+
+async function submitExam() {
+
+  if (!currentTest) {
+
+    alert(
+      "No active exam found."
+    );
+
+    return;
+
+  }
+
+
+  const nameInput =
+    $("candidateName");
+
+
+  candidateName =
+    nameInput?.value
+      ?.trim() ||
+    "";
+
+
+  if (!candidateName) {
+
+    alert(
+      "Please enter your name before submitting the exam."
+    );
+
+
+    nameInput?.focus();
+
+
+    return;
+
+  }
+
+
+  const unanswered =
+    selectedAnswers.filter(
+      (answer) =>
+        !answer
+    ).length;
+
+
+  if (
+    unanswered > 0
+  ) {
+
+    const proceed =
+      confirm(
+        `${unanswered} question(s) are unanswered.\n\nSubmit anyway?`
+      );
+
+
+    if (!proceed) {
+      return;
+    }
+
+  }
+
+
+  const submitButton =
+    $("submitExamBtn");
+
+
+  if (submitButton) {
+
+    submitButton.disabled =
+      true;
+
+  }
+
+
+  setLoading(
+    true,
+    "Checking your answers..."
+  );
+
+
+  try {
+
+    const result =
+      calculateResult();
+
+
+    await saveExamResult(
+      result
+    );
+
+
+    renderResult(
+      result
+    );
+
+
+  } catch (error) {
+
+    console.error(
+      "Result submission error:",
+      error
+    );
+
+
+    /*
+      Even if database insertion fails,
+      show the calculated result locally.
+    */
+
+    const result =
+      calculateResult();
+
+
+    renderResult(
+      result
+    );
+
+
+    alert(
+      "Your result was calculated, but it could not be saved online.\n\n" +
+      (
+        error?.message ||
+        "Unknown error."
+      )
+    );
+
+
+  } finally {
+
+    setLoading(
+      false
+    );
+
+
+    if (submitButton) {
+
+      submitButton.disabled =
+        false;
+
+    }
+
+  }
+
+}
+
+
+/* =========================================================
+   SUBMIT BUTTON
+   ========================================================= */
+
+$("submitExamBtn")?.addEventListener(
+  "click",
+  submitExam
+);
+
+
+/* =========================================================
+   COPY TEST CODE
+   ========================================================= */
+
+async function copyTestCode() {
+
+  const code =
+    $("createdCode")
+      ?.textContent
+      ?.trim();
+
+
+  if (!code) {
+
+    return;
+
+  }
+
+
+  try {
+
+    await navigator.clipboard.writeText(
+      code
+    );
+
+
+    const button =
+      $("copyCodeBtn");
+
+
+    if (button) {
+
+      const originalText =
+        button.textContent;
+
+
+      button.textContent =
+        "Copied ✓";
+
 
       setTimeout(
         () => {
 
-          if (button) {
-
-            button.textContent =
-              oldText;
-
-          }
+          button.textContent =
+            originalText;
 
         },
         1600
       );
 
-    } catch {
-
-      alert(
-        `Test Code: ${code}`
-      );
-
     }
 
+  } catch (error) {
+
+    console.error(
+      error
+    );
+
+
+    alert(
+      `Test Code: ${code}`
+    );
+
   }
+
+}
+
+
+$("copyCodeBtn")?.addEventListener(
+  "click",
+  copyTestCode
 );
 
 
@@ -2812,6 +4131,7 @@ $("showCreateBtn")?.addEventListener(
       "createScreen"
     );
 
+
     renderOptionSettings();
 
   }
@@ -2826,8 +4146,16 @@ $("showJoinBtn")?.addEventListener(
       "joinScreen"
     );
 
-    $("joinCode")
-      ?.focus();
+
+    setTimeout(
+      () => {
+
+        $("joinCode")
+          ?.focus();
+
+      },
+      100
+    );
 
   }
 );
@@ -2882,67 +4210,6 @@ $("backToCreateBtn")?.addEventListener(
 
 
 /* =========================================================
-   EXIT EXAM
-   ========================================================= */
-
-$("exitExamBtn")?.addEventListener(
-  "click",
-  () => {
-
-    const answered =
-      selectedAnswers.filter(
-        Boolean
-      ).length;
-
-    if (
-      answered > 0
-    ) {
-
-      const confirmed =
-        confirm(
-          "You have selected some answers.\n\nExit the exam?"
-        );
-
-      if (!confirmed) {
-        return;
-      }
-
-    }
-
-    /*
-      Invalidate any PDF render that may
-      still be in progress.
-    */
-
-    pdfRenderToken++;
-
-    currentTest =
-      null;
-
-    currentPdfDocument =
-      null;
-
-    currentPdfUrl =
-      "";
-
-    selectedAnswers =
-      [];
-
-    candidateName =
-      "";
-
-    pendingPdfRender =
-      null;
-
-    showScreen(
-      "homeScreen"
-    );
-
-  }
-);
-
-
-/* =========================================================
    CLEAR CREATE FORM
    ========================================================= */
 
@@ -2953,14 +4220,18 @@ $("clearCreateBtn")?.addEventListener(
     const testName =
       $("testName");
 
+
     const pdfFile =
       $("pdfFile");
+
 
     const questionCount =
       $("questionCount");
 
+
     const pdfStatus =
       $("pdfStatus");
+
 
     if (testName) {
 
@@ -2969,12 +4240,14 @@ $("clearCreateBtn")?.addEventListener(
 
     }
 
+
     if (pdfFile) {
 
       pdfFile.value =
         "";
 
     }
+
 
     if (questionCount) {
 
@@ -2983,16 +4256,22 @@ $("clearCreateBtn")?.addEventListener(
 
     }
 
+
     if (pdfStatus) {
 
       pdfStatus.textContent =
         "";
 
+      pdfStatus.style.color =
+        "";
+
     }
+
 
     hide(
       $("pdfPreviewBox")
     );
+
 
     currentPdfUrl =
       "";
@@ -3005,6 +4284,7 @@ $("clearCreateBtn")?.addEventListener(
 
     currentAnswerKey =
       [];
+
 
     renderOptionSettings();
 
@@ -3026,6 +4306,7 @@ $("questionCount")?.addEventListener(
           ?.value
       );
 
+
     if (
       Number.isInteger(
         count
@@ -3043,7 +4324,7 @@ $("questionCount")?.addEventListener(
 
 
 /* =========================================================
-   DEFAULT OPTION CHANGE
+   DEFAULT OPTIONS CHANGE
    ========================================================= */
 
 $("defaultOptions")?.addEventListener(
@@ -3055,6 +4336,7 @@ $("defaultOptions")?.addEventListener(
         $("defaultOptions")
           ?.value
       );
+
 
     document
       .querySelectorAll(
@@ -3074,15 +4356,19 @@ $("defaultOptions")?.addEventListener(
 
 
 /* =========================================================
-   JOIN CODE AUTO FORMAT
+   JOIN CODE INPUT
    ========================================================= */
 
 $("joinCode")?.addEventListener(
   "input",
   (event) => {
 
-    event.target.value =
-      event.target.value
+    const input =
+      event.target;
+
+
+    input.value =
+      input.value
         .toUpperCase()
         .replace(
           /[^A-Z0-9]/g,
@@ -3098,7 +4384,7 @@ $("joinCode")?.addEventListener(
 
 
 /* =========================================================
-   ENTER KEY SUPPORT
+   JOIN CODE ENTER KEY
    ========================================================= */
 
 $("joinCode")?.addEventListener(
@@ -3122,44 +4408,322 @@ $("joinCode")?.addEventListener(
 
 
 /* =========================================================
-   INITIALIZATION
+   CANDIDATE NAME ENTER KEY
    ========================================================= */
 
 document.addEventListener(
-  "DOMContentLoaded",
-  () => {
+  "keydown",
+  (event) => {
 
-    renderOptionSettings();
+    if (
+      event.key !==
+      "Enter"
+    ) {
 
-    const screens =
-      document.querySelectorAll(
-        ".screen"
-      );
-
-    const visible =
-      Array
-        .from(screens)
-        .some(
-          (screen) =>
-            !screen.classList.contains(
-              "hidden"
-            )
-        );
-
-    if (!visible) {
-
-      showScreen(
-        "homeScreen"
-      );
+      return;
 
     }
+
+
+    const active =
+      document.activeElement;
+
+
+    if (
+      active?.id !==
+      "candidateName"
+    ) {
+
+      return;
+
+    }
+
+
+    event.preventDefault();
+
+
+    $("submitExamBtn")
+      ?.click();
 
   }
 );
 
 
 /* =========================================================
-   GLOBAL ERROR PROTECTION
+   BEFORE LEAVING EXAM
+   ========================================================= */
+
+window.addEventListener(
+  "beforeunload",
+  (event) => {
+
+    const examScreen =
+      $("examScreen");
+
+
+    if (
+      !examScreen ||
+      examScreen.classList.contains(
+        "hidden"
+      )
+    ) {
+
+      return;
+
+    }
+
+
+    const answered =
+      selectedAnswers.filter(
+        Boolean
+      ).length;
+
+
+    if (
+      answered <= 0
+    ) {
+
+      return;
+
+    }
+
+
+    event.preventDefault();
+
+    event.returnValue =
+      "";
+
+  }
+);
+
+
+/* =========================================================
+   MOBILE PDF VIEWER HELPERS
+   ========================================================= */
+
+function isAndroidDevice() {
+
+  return /Android/i.test(
+    navigator.userAgent
+  );
+
+}
+
+
+function isIOSDevice() {
+
+  return /iPhone|iPad|iPod/i.test(
+    navigator.userAgent
+  );
+
+}
+
+
+function isMobileDevice() {
+
+  return (
+    isAndroidDevice() ||
+    isIOSDevice() ||
+    /Mobile/i.test(
+      navigator.userAgent
+    )
+  );
+
+}
+
+
+/* =========================================================
+   PDF VIEWER DEVICE MODE
+   ========================================================= */
+
+function applyPdfViewerDeviceMode() {
+
+  const viewer =
+    $("mobilePdfViewer");
+
+
+  if (!viewer) {
+    return;
+  }
+
+
+  if (
+    isAndroidDevice()
+  ) {
+
+    viewer.classList.add(
+      "android-pdf-viewer"
+    );
+
+  } else {
+
+    viewer.classList.remove(
+      "android-pdf-viewer"
+    );
+
+  }
+
+
+  if (
+    isMobileDevice()
+  ) {
+
+    viewer.classList.add(
+      "mobile-device-pdf"
+    );
+
+  } else {
+
+    viewer.classList.remove(
+      "mobile-device-pdf"
+    );
+
+  }
+
+}
+
+
+/* =========================================================
+   PDF VIEWER AFTER EXAM SCREEN
+   ========================================================= */
+
+function finalizePdfViewerSetup() {
+
+  setupExamPdf();
+
+  bindPdfFrameEvents();
+
+  applyPdfViewerDeviceMode();
+
+}
+
+
+/* =========================================================
+   SCREEN CHANGE OBSERVER
+   ========================================================= */
+
+const examScreenElement =
+  $("examScreen");
+
+
+if (examScreenElement) {
+
+  const examObserver =
+    new MutationObserver(
+      () => {
+
+        if (
+          !examScreenElement.classList.contains(
+            "hidden"
+          )
+        ) {
+
+          setTimeout(
+            () => {
+
+              finalizePdfViewerSetup();
+
+            },
+            50
+          );
+
+        }
+
+      }
+    );
+
+
+  examObserver.observe(
+    examScreenElement,
+    {
+      attributes:
+        true,
+
+      attributeFilter:
+        ["class"]
+    }
+  );
+
+}
+
+
+/* =========================================================
+   INITIAL PAGE SETUP
+   ========================================================= */
+
+function initializeApplication() {
+
+  /*
+    Create option settings.
+  */
+
+  renderOptionSettings();
+
+
+  /*
+    Make sure the application starts
+    from Home.
+  */
+
+  const screens =
+    document.querySelectorAll(
+      ".screen"
+    );
+
+
+  const visibleScreen =
+    Array
+      .from(screens)
+      .find(
+        (screen) =>
+          !screen.classList.contains(
+            "hidden"
+          )
+      );
+
+
+  if (!visibleScreen) {
+
+    showScreen(
+      "homeScreen"
+    );
+
+  }
+
+
+  /*
+    Prepare the PDF viewer structure
+    without loading any PDF yet.
+  */
+
+  setupExamPdf();
+
+}
+
+
+/* =========================================================
+   DOM READY
+   ========================================================= */
+
+if (
+  document.readyState ===
+  "loading"
+) {
+
+  document.addEventListener(
+    "DOMContentLoaded",
+    initializeApplication
+  );
+
+} else {
+
+  initializeApplication();
+
+}
+
+
+/* =========================================================
+   GLOBAL ERROR HANDLING
    ========================================================= */
 
 window.addEventListener(
@@ -3175,6 +4739,2044 @@ window.addEventListener(
 );
 
 
+window.addEventListener(
+  "error",
+  (event) => {
+
+    console.error(
+      "Global JavaScript error:",
+      event.error ||
+        event.message
+    );
+
+  }
+);
+
+
 /* =========================================================
-   END
+   END OF PART 3
+   ========================================================= */
+  /* =========================================================
+   EXAM OMR — PART 4
+   ========================================================= */
+
+
+/* =========================================================
+   PDF VIEWER EXTRA SAFETY
+   ========================================================= */
+
+/*
+  The PDF.js viewer is intentionally isolated
+  inside its iframe.
+
+  We do not try to manipulate its internal buttons
+  from the parent page.
+
+  This avoids cross-origin problems and lets the
+  official PDF.js viewer handle:
+
+  - Zoom
+  - Page navigation
+  - Search
+  - Rotation
+  - Mobile touch
+  - Page thumbnails
+*/
+
+
+function getPdfFrame() {
+
+  return $("pdfViewerFrame");
+
+}
+
+
+/* =========================================================
+   RELOAD CURRENT PDF
+   ========================================================= */
+
+function reloadCurrentPdf() {
+
+  if (!currentPdfUrl) {
+
+    return;
+
+  }
+
+
+  const frame =
+    getPdfFrame();
+
+
+  if (!frame) {
+
+    return;
+
+  }
+
+
+  const newUrl =
+    buildPdfViewerUrl(
+      currentPdfUrl
+    );
+
+
+  frame.src =
+    newUrl;
+
+
+  frame.dataset.pdfUrl =
+    currentPdfUrl;
+
+}
+
+
+/* =========================================================
+   OPEN PDF VIEWER
+   ========================================================= */
+
+function openCurrentPdfViewer() {
+
+  if (!currentPdfUrl) {
+
+    alert(
+      "Question paper PDF is not available."
+    );
+
+    return;
+
+  }
+
+
+  const viewerUrl =
+    buildPdfViewerUrl(
+      currentPdfUrl
+    );
+
+
+  /*
+    Try opening the official PDF.js viewer.
+
+    If popup blocking prevents this,
+    fall back to the PDF URL.
+  */
+
+  const opened =
+    window.open(
+      viewerUrl,
+      "_blank"
+    );
+
+
+  if (!opened) {
+
+    window.location.href =
+      viewerUrl;
+
+  }
+
+}
+
+
+/* =========================================================
+   PDF VIEWER BUTTON
+   ========================================================= */
+
+document.addEventListener(
+  "click",
+  (event) => {
+
+    const target =
+      event.target;
+
+
+    if (
+      !(target instanceof
+        HTMLElement)
+    ) {
+
+      return;
+
+    }
+
+
+    if (
+      target.closest(
+        "#pdfFullscreenBtn"
+      )
+    ) {
+
+      event.preventDefault();
+
+      openCurrentPdfViewer();
+
+    }
+
+  }
+);
+
+
+/* =========================================================
+   PDF EXTERNAL LINK
+   ========================================================= */
+
+document.addEventListener(
+  "click",
+  (event) => {
+
+    const target =
+      event.target;
+
+
+    if (
+      !(target instanceof
+        HTMLElement)
+    ) {
+
+      return;
+
+    }
+
+
+    const link =
+      target.closest(
+        "#pdfExternalLink"
+      );
+
+
+    if (!link) {
+      return;
+    }
+
+
+    if (!currentPdfUrl) {
+
+      event.preventDefault();
+
+      alert(
+        "Question paper PDF is not available."
+      );
+
+      return;
+
+    }
+
+
+    link.href =
+      currentPdfUrl;
+
+  }
+);
+
+
+/* =========================================================
+   PDF VIEWER KEYBOARD SUPPORT
+   ========================================================= */
+
+document.addEventListener(
+  "keydown",
+  (event) => {
+
+    /*
+      Do not interfere with typing
+      inside input fields.
+    */
+
+    const active =
+      document.activeElement;
+
+
+    if (
+      active &&
+      (
+        active.tagName ===
+          "INPUT" ||
+        active.tagName ===
+          "TEXTAREA" ||
+        active.tagName ===
+          "SELECT"
+      )
+    ) {
+
+      return;
+
+    }
+
+
+    const examScreen =
+      $("examScreen");
+
+
+    if (
+      !examScreen ||
+      examScreen.classList.contains(
+        "hidden"
+      )
+    ) {
+
+      return;
+
+    }
+
+
+    /*
+      Keyboard shortcuts for opening
+      the PDF viewer.
+    */
+
+    if (
+      event.key ===
+      "p"
+    ) {
+
+      event.preventDefault();
+
+      openCurrentPdfViewer();
+
+    }
+
+  }
+);
+
+
+/* =========================================================
+   PDF URL VALIDATION
+   ========================================================= */
+
+function isValidPdfUrl(
+  url
+) {
+
+  if (!url) {
+
+    return false;
+
+  }
+
+
+  try {
+
+    const parsed =
+      new URL(
+        url,
+        window.location.href
+      );
+
+
+    return (
+      parsed.protocol ===
+        "http:" ||
+      parsed.protocol ===
+        "https:"
+    );
+
+  } catch {
+
+    return false;
+
+  }
+
+}
+
+
+/* =========================================================
+   SAFE PDF INITIALIZATION
+   ========================================================= */
+
+async function safelyInitializePdf(
+  url
+) {
+
+  if (
+    !isValidPdfUrl(
+      url
+    )
+  ) {
+
+    throw new Error(
+      "The question paper URL is invalid."
+    );
+
+  }
+
+
+  currentPdfUrl =
+    url;
+
+
+  /*
+    Make sure the viewer exists.
+  */
+
+  setupExamPdf();
+
+
+  /*
+    Give the DOM a moment to finish
+    inserting the viewer.
+  */
+
+  await new Promise(
+    (resolve) => {
+
+      requestAnimationFrame(
+        resolve
+      );
+
+    }
+  );
+
+
+  loadPdfIntoViewer(
+    url
+  );
+
+
+  /*
+    Do not attempt to inspect
+    the iframe contents.
+
+    The official viewer controls
+    everything internally.
+  */
+
+}
+
+
+/* =========================================================
+   IMPROVED OPEN EXAM
+   ========================================================= */
+
+async function openExam(
+  test
+) {
+
+  if (!test) {
+
+    throw new Error(
+      "Test data is missing."
+    );
+
+  }
+
+
+  currentTest =
+    test;
+
+
+  currentQuestionCount =
+    Number(
+      test.question_count
+    ) || 0;
+
+
+  if (
+    currentQuestionCount <=
+    0
+  ) {
+
+    throw new Error(
+      "Invalid question count."
+    );
+
+  }
+
+
+  currentOptions =
+    Array.isArray(
+      test.options
+    )
+      ? test.options.map(
+          normalizeOptionCount
+        )
+      : new Array(
+          currentQuestionCount
+        ).fill(4);
+
+
+  currentAnswerKey =
+    Array.isArray(
+      test.answer_key
+    )
+      ? test.answer_key
+      : [];
+
+
+  selectedAnswers =
+    new Array(
+      currentQuestionCount
+    ).fill("");
+
+
+  candidateName =
+    "";
+
+
+  /*
+    Exam heading.
+  */
+
+  if ($("examName")) {
+
+    $("examName")
+      .textContent =
+      test.name ||
+      "Exam";
+
+  }
+
+
+  if ($("examInfo")) {
+
+    $("examInfo")
+      .textContent =
+      `${currentQuestionCount} Questions • Code: ${test.code}`;
+
+  }
+
+
+  /*
+    Candidate name.
+  */
+
+  ensureCandidateNameInput();
+
+
+  if ($("candidateName")) {
+
+    $("candidateName")
+      .value =
+      "";
+
+  }
+
+
+  /*
+    PDF.
+  */
+
+  currentPdfUrl =
+    test.pdf_url;
+
+
+  await safelyInitializePdf(
+    currentPdfUrl
+  );
+
+
+  /*
+    OMR.
+  */
+
+  renderExam();
+
+
+  /*
+    Finally show exam.
+  */
+
+  showScreen(
+    "examScreen"
+  );
+
+
+  /*
+    PDF viewer may have been created
+    before the screen became visible.
+
+    Re-apply setup after screen display.
+  */
+
+  requestAnimationFrame(
+    () => {
+
+      finalizePdfViewerSetup();
+
+    }
+  );
+
+}
+
+
+/* =========================================================
+   JOIN BUTTON — FINAL
+   ========================================================= */
+
+/*
+  Remove any accidental duplicate join
+  handlers by using a delegated handler.
+
+  The existing listener still works, but this
+  function provides a safe alternative when
+  the button is clicked.
+*/
+
+
+async function handleJoinTest() {
+
+  const input =
+    $("joinCode");
+
+
+  const status =
+    $("joinStatus");
+
+
+  const code =
+    input?.value
+      ?.trim()
+      ?.toUpperCase();
+
+
+  hideStatus(
+    status
+  );
+
+
+  if (!code) {
+
+    showStatus(
+      status,
+      "Please enter the test code.",
+      "error"
+    );
+
+    return;
+
+  }
+
+
+  if (
+    code.length !==
+    6
+  ) {
+
+    showStatus(
+      status,
+      "Test Code must contain 6 characters.",
+      "error"
+    );
+
+    return;
+
+  }
+
+
+  setLoading(
+    true,
+    "Loading test..."
+  );
+
+
+  try {
+
+    const test =
+      await loadTestByCode(
+        code
+      );
+
+
+    await openExam(
+      test
+    );
+
+
+  } catch (error) {
+
+    console.error(
+      error
+    );
+
+
+    showStatus(
+      status,
+      error?.message ||
+        "Could not load the test.",
+      "error"
+    );
+
+
+  } finally {
+
+    setLoading(
+      false
+    );
+
+  }
+
+}
+
+
+/*
+  The HTML button already has a click listener
+  from the previous section.
+
+  We intentionally do not attach another
+  click listener here because that could
+  cause the test to load twice.
+*/
+
+
+/* =========================================================
+   EXAM STATE CHECK
+   ========================================================= */
+
+function isExamActive() {
+
+  const screen =
+    $("examScreen");
+
+
+  return Boolean(
+    screen &&
+    !screen.classList.contains(
+      "hidden"
+    ) &&
+    currentTest
+  );
+
+}
+
+
+/* =========================================================
+   PREVENT ACCIDENTAL DOUBLE SUBMISSION
+   ========================================================= */
+
+let examSubmitting =
+  false;
+
+
+async function safeSubmitExam() {
+
+  if (examSubmitting) {
+
+    return;
+
+  }
+
+
+  examSubmitting =
+    true;
+
+
+  try {
+
+    await submitExam();
+
+  } finally {
+
+    examSubmitting =
+      false;
+
+  }
+
+}
+
+
+/* =========================================================
+   RESULT SAVE RETRY
+   ========================================================= */
+
+async function retrySaveResult(
+  result
+) {
+
+  if (!result) {
+
+    return false;
+
+  }
+
+
+  try {
+
+    await saveExamResult(
+      result
+    );
+
+    return true;
+
+  } catch (error) {
+
+    console.error(
+      "Retry result save failed:",
+      error
+    );
+
+    return false;
+
+  }
+
+}
+
+
+/* =========================================================
+   RESULT LOCAL BACKUP
+   ========================================================= */
+
+function createLocalResultBackup(
+  result
+) {
+
+  if (!result) {
+    return;
+  }
+
+
+  try {
+
+    const key =
+      `exam-result-${result.testCode}`;
+
+
+    localStorage.setItem(
+      key,
+      JSON.stringify(
+        result
+      )
+    );
+
+  } catch (error) {
+
+    console.warn(
+      "Could not save local result backup:",
+      error
+    );
+
+  }
+
+}
+
+
+/* =========================================================
+   REMOVE LOCAL RESULT BACKUP
+   ========================================================= */
+
+function removeLocalResultBackup(
+  testCode
+) {
+
+  if (!testCode) {
+    return;
+  }
+
+
+  try {
+
+    localStorage.removeItem(
+      `exam-result-${testCode}`
+    );
+
+  } catch (error) {
+
+    console.warn(
+      "Could not remove local result backup:",
+      error
+    );
+
+  }
+
+}
+
+
+/* =========================================================
+   RESULT DISPLAY AFTER SUBMISSION
+   ========================================================= */
+
+function finishExamWithResult(
+  result,
+  saved
+) {
+
+  renderResult(
+    result
+  );
+
+
+  if (saved) {
+
+    removeLocalResultBackup(
+      result.testCode
+    );
+
+  } else {
+
+    createLocalResultBackup(
+      result
+    );
+
+  }
+
+
+  /*
+    Scroll to result.
+  */
+
+  const resultBox =
+    $("resultBox");
+
+
+  if (resultBox) {
+
+    setTimeout(
+      () => {
+
+        resultBox.scrollIntoView({
+          behavior:
+            "smooth",
+
+          block:
+            "center"
+        });
+
+      },
+      100
+    );
+
+  }
+
+}
+
+
+/* =========================================================
+   RESULT STATUS
+   ========================================================= */
+
+function showResultSaveStatus(
+  saved
+) {
+
+  const box =
+    $("resultBox");
+
+
+  if (!box) {
+    return;
+  }
+
+
+  const existing =
+    box.querySelector(
+      ".result-save-status"
+    );
+
+
+  if (existing) {
+
+    existing.remove();
+
+  }
+
+
+  const status =
+    document.createElement(
+      "div"
+    );
+
+
+  status.className =
+    "result-save-status";
+
+
+  if (saved) {
+
+    status.textContent =
+      "✓ Result saved successfully.";
+
+    status.classList.add(
+      "success"
+    );
+
+  } else {
+
+    status.textContent =
+      "⚠ Result calculated locally. Online save failed.";
+
+    status.classList.add(
+      "warning"
+    );
+
+  }
+
+
+  box.appendChild(
+    status
+  );
+
+}
+
+
+/* =========================================================
+   FINAL SUBMIT FLOW
+   ========================================================= */
+
+async function submitExamFinal() {
+
+  if (!isExamActive()) {
+
+    return;
+
+  }
+
+
+  const nameInput =
+    $("candidateName");
+
+
+  candidateName =
+    nameInput?.value
+      ?.trim() ||
+    "";
+
+
+  if (!candidateName) {
+
+    alert(
+      "Please enter your name before submitting the exam."
+    );
+
+
+    nameInput?.focus();
+
+
+    return;
+
+  }
+
+
+  const unanswered =
+    selectedAnswers.filter(
+      (answer) =>
+        !answer
+    ).length;
+
+
+  if (
+    unanswered > 0
+  ) {
+
+    const confirmed =
+      confirm(
+        `${unanswered} question(s) are unanswered.\n\nDo you want to submit the exam?`
+      );
+
+
+    if (!confirmed) {
+
+      return;
+
+    }
+
+  }
+
+
+  const result =
+    calculateResult();
+
+
+  setLoading(
+    true,
+    "Saving your result..."
+  );
+
+
+  let saved =
+    false;
+
+
+  try {
+
+    await saveExamResult(
+      result
+    );
+
+
+    saved =
+      true;
+
+
+  } catch (error) {
+
+    console.error(
+      "Could not save result:",
+      error
+    );
+
+
+    /*
+      We don't throw the result away.
+
+      The candidate still gets the
+      calculated result.
+    */
+
+    createLocalResultBackup(
+      result
+    );
+
+  }
+
+
+  setLoading(
+    false
+  );
+
+
+  finishExamWithResult(
+    result,
+    saved
+  );
+
+
+  showResultSaveStatus(
+    saved
+  );
+
+}
+
+
+/* =========================================================
+   SUBMIT BUTTON REPLACEMENT
+   ========================================================= */
+
+/*
+  Replace the previous handler by using
+  event delegation.
+
+  This works even if the button is recreated
+  by another UI layer.
+*/
+
+document.addEventListener(
+  "click",
+  (event) => {
+
+    const target =
+      event.target;
+
+
+    if (
+      !(target instanceof
+        HTMLElement)
+    ) {
+
+      return;
+
+    }
+
+
+    if (
+      target.closest(
+        "#submitExamBtn"
+      )
+    ) {
+
+      /*
+        Stop the event from bubbling
+        further.
+      */
+
+      event.preventDefault();
+
+
+      /*
+        Use the final submit flow.
+      */
+
+      submitExamFinal();
+
+    }
+
+  }
+);
+
+
+/* =========================================================
+   CREATE SCREEN SHORTCUT
+   ========================================================= */
+
+document.addEventListener(
+  "keydown",
+  (event) => {
+
+    if (
+      event.key !==
+      "Escape"
+    ) {
+
+      return;
+
+    }
+
+
+    const createScreen =
+      $("createScreen");
+
+
+    if (
+      createScreen &&
+      !createScreen.classList.contains(
+        "hidden"
+      )
+    ) {
+
+      showScreen(
+        "homeScreen"
+      );
+
+    }
+
+  }
+);
+
+
+/* =========================================================
+   EXAM PDF URL CHANGE DETECTION
+   ========================================================= */
+
+let previousExamPdfUrl =
+  "";
+
+
+function detectPdfUrlChange() {
+
+  if (
+    !currentTest
+  ) {
+
+    return;
+
+  }
+
+
+  const url =
+    currentTest.pdf_url;
+
+
+  if (
+    !url
+  ) {
+
+    return;
+
+  }
+
+
+  if (
+    url ===
+    previousExamPdfUrl
+  ) {
+
+    return;
+
+  }
+
+
+  previousExamPdfUrl =
+    url;
+
+
+  currentPdfUrl =
+    url;
+
+
+  const frame =
+    $("pdfViewerFrame");
+
+
+  if (
+    frame &&
+    frame.dataset.pdfUrl !==
+      url
+  ) {
+
+    loadPdfIntoViewer(
+      url
+    );
+
+  }
+
+}
+
+
+/* =========================================================
+   PDF VIEWER WATCHER
+   ========================================================= */
+
+setInterval(
+  () => {
+
+    if (
+      !isExamActive()
+    ) {
+
+      return;
+
+    }
+
+
+    detectPdfUrlChange();
+
+  },
+  1000
+);
+
+
+/* =========================================================
+   END OF PART 4
+   ========================================================= */
+   /* =========================================================
+   EXAM OMR — PART 5/5
+   FINAL INITIALIZATION & NAVIGATION
+   ========================================================= */
+
+
+/* =========================================================
+   BACK TO HOME
+   ========================================================= */
+
+function goHome() {
+
+  /*
+    Clean PDF viewer first.
+  */
+
+  destroyPdfViewer();
+
+
+  /*
+    Reset exam state.
+  */
+
+  currentTest =
+    null;
+
+  currentPdfUrl =
+    "";
+
+  currentQuestionCount =
+    40;
+
+  currentOptions =
+    [];
+
+  currentAnswerKey =
+    [];
+
+  selectedAnswers =
+    [];
+
+  candidateName =
+    "";
+
+  previousExamPdfUrl =
+    "";
+
+
+  /*
+    Show home.
+  */
+
+  showScreen(
+    "homeScreen"
+  );
+
+}
+
+
+/* =========================================================
+   HOME BUTTONS
+   ========================================================= */
+
+$("backHomeFromCreate")
+  ?.addEventListener(
+    "click",
+    () => {
+
+      goHome();
+
+    }
+  );
+
+
+$("backHomeFromJoin")
+  ?.addEventListener(
+    "click",
+    () => {
+
+      goHome();
+
+    }
+  );
+
+
+$("goHomeAfterCreate")
+  ?.addEventListener(
+    "click",
+    () => {
+
+      goHome();
+
+    }
+  );
+
+
+/* =========================================================
+   CREATE TEST SCREEN
+   ========================================================= */
+
+function openCreateScreen() {
+
+  showScreen(
+    "createScreen"
+  );
+
+
+  renderOptionSettings();
+
+}
+
+
+$("showCreateBtn")
+  ?.addEventListener(
+    "click",
+    openCreateScreen
+  );
+
+
+/* =========================================================
+   JOIN SCREEN
+   ========================================================= */
+
+function openJoinScreen() {
+
+  showScreen(
+    "joinScreen"
+  );
+
+
+  const input =
+    $("joinCode");
+
+
+  setTimeout(
+    () => {
+
+      input?.focus();
+
+    },
+    100
+  );
+
+}
+
+
+$("showJoinBtn")
+  ?.addEventListener(
+    "click",
+    openJoinScreen
+  );
+
+
+/* =========================================================
+   BACK TO CREATE FROM ANSWER KEY
+   ========================================================= */
+
+$("backToCreateBtn")
+  ?.addEventListener(
+    "click",
+    () => {
+
+      showScreen(
+        "createScreen"
+      );
+
+    }
+  );
+
+
+/* =========================================================
+   CREATE SCREEN — QUESTION COUNT
+   ========================================================= */
+
+$("questionCount")
+  ?.addEventListener(
+    "input",
+    () => {
+
+      const input =
+        $("questionCount");
+
+
+      if (!input) {
+        return;
+      }
+
+
+      let value =
+        Number(
+          input.value
+        );
+
+
+      if (
+        !Number.isFinite(
+          value
+        )
+      ) {
+
+        value =
+          40;
+
+      }
+
+
+      value =
+        Math.max(
+          1,
+          Math.min(
+            300,
+            Math.floor(
+              value
+            )
+          )
+        );
+
+
+      /*
+        Don't force the value back
+        while the user is typing an
+        empty field.
+      */
+
+      if (
+        input.value !==
+        ""
+      ) {
+
+        input.value =
+          String(value);
+
+      }
+
+
+      renderOptionSettings();
+
+    }
+  );
+
+
+/* =========================================================
+   DEFAULT OPTION CHANGE
+   ========================================================= */
+
+$("defaultOptions")
+  ?.addEventListener(
+    "change",
+    () => {
+
+      const value =
+        normalizeOptionCount(
+          $("defaultOptions")
+            ?.value
+        );
+
+
+      document
+        .querySelectorAll(
+          ".question-option-count"
+        )
+        .forEach(
+          (select) => {
+
+            select.value =
+              String(value);
+
+          }
+        );
+
+    }
+  );
+
+
+/* =========================================================
+   JOIN CODE FORMATTER
+   ========================================================= */
+
+$("joinCode")
+  ?.addEventListener(
+    "input",
+    (event) => {
+
+      const input =
+        event.target;
+
+
+      input.value =
+        input.value
+          .toUpperCase()
+          .replace(
+            /[^A-Z0-9]/g,
+            ""
+          )
+          .slice(
+            0,
+            6
+          );
+
+    }
+  );
+
+
+/* =========================================================
+   JOIN CODE ENTER
+   ========================================================= */
+
+$("joinCode")
+  ?.addEventListener(
+    "keydown",
+    (event) => {
+
+      if (
+        event.key !==
+        "Enter"
+      ) {
+
+        return;
+
+      }
+
+
+      event.preventDefault();
+
+
+      $("joinBtn")
+        ?.click();
+
+    }
+  );
+
+
+/* =========================================================
+   CANDIDATE NAME
+   ========================================================= */
+
+document.addEventListener(
+  "input",
+  (event) => {
+
+    const target =
+      event.target;
+
+
+    if (
+      !(target instanceof
+        HTMLInputElement)
+    ) {
+
+      return;
+
+    }
+
+
+    if (
+      target.id !==
+      "candidateName"
+    ) {
+
+      return;
+
+    }
+
+
+    /*
+      Keep candidate name trimmed
+      when calculating result, but
+      don't alter what the user types.
+    */
+
+    candidateName =
+      target.value.trim();
+
+  }
+);
+
+
+/* =========================================================
+   CANDIDATE NAME ENTER
+   ========================================================= */
+
+document.addEventListener(
+  "keydown",
+  (event) => {
+
+    const target =
+      event.target;
+
+
+    if (
+      !(target instanceof
+        HTMLInputElement)
+    ) {
+
+      return;
+
+    }
+
+
+    if (
+      target.id !==
+      "candidateName"
+    ) {
+
+      return;
+
+    }
+
+
+    if (
+      event.key ===
+      "Enter"
+    ) {
+
+      event.preventDefault();
+
+
+      submitExamFinal();
+
+    }
+
+  }
+);
+
+
+/* =========================================================
+   PDF VIEWER RESPONSIVE MODE
+   ========================================================= */
+
+function updatePdfViewerLayout() {
+
+  const viewer =
+    $("mobilePdfViewer");
+
+
+  if (!viewer) {
+    return;
+  }
+
+
+  const frame =
+    $("pdfViewerFrame");
+
+
+  if (!frame) {
+    return;
+  }
+
+
+  /*
+    Mobile browsers sometimes report
+    a very small iframe height before
+    layout is complete.
+
+    Give it a sensible minimum.
+  */
+
+  if (
+    window.innerWidth <=
+    650
+  ) {
+
+    frame.style.minHeight =
+      "520px";
+
+  } else {
+
+    frame.style.minHeight =
+      "700px";
+
+  }
+
+}
+
+
+window.addEventListener(
+  "resize",
+  () => {
+
+    updatePdfViewerLayout();
+
+  }
+);
+
+
+/* =========================================================
+   PDF VIEWER SCREEN CHANGE
+   ========================================================= */
+
+function preparePdfViewerWhenVisible() {
+
+  const examScreen =
+    $("examScreen");
+
+
+  if (!examScreen) {
+    return;
+  }
+
+
+  if (
+    examScreen.classList.contains(
+      "hidden"
+    )
+  ) {
+
+    return;
+
+  }
+
+
+  setupExamPdf();
+
+  bindPdfFrameEvents();
+
+  applyPdfViewerDeviceMode();
+
+  updatePdfViewerLayout();
+
+
+  /*
+    If PDF URL exists but the iframe
+    has not been loaded yet, load it.
+  */
+
+  if (
+    currentPdfUrl
+  ) {
+
+    const frame =
+      $("pdfViewerFrame");
+
+
+    if (
+      frame &&
+      frame.dataset.pdfUrl !==
+        currentPdfUrl
+    ) {
+
+      loadPdfIntoViewer(
+        currentPdfUrl
+      );
+
+    }
+
+  }
+
+}
+
+
+/* =========================================================
+   EXAM SCREEN OBSERVER
+   ========================================================= */
+
+const examScreen =
+  $("examScreen");
+
+
+if (examScreen) {
+
+  const observer =
+    new MutationObserver(
+      () => {
+
+        preparePdfViewerWhenVisible();
+
+      }
+    );
+
+
+  observer.observe(
+    examScreen,
+    {
+      attributes:
+        true,
+
+      attributeFilter:
+        [
+          "class"
+        ]
+    }
+  );
+
+}
+
+
+/* =========================================================
+   APPLICATION INITIALIZATION
+   ========================================================= */
+
+function initializeApplication() {
+
+  /*
+    Create default option settings.
+  */
+
+  renderOptionSettings();
+
+
+  /*
+    Prepare PDF viewer structure.
+  */
+
+  setupExamPdf();
+
+
+  /*
+    Apply device-specific viewer
+    classes.
+  */
+
+  applyPdfViewerDeviceMode();
+
+
+  /*
+    Responsive PDF layout.
+  */
+
+  updatePdfViewerLayout();
+
+
+  /*
+    Find visible screen.
+  */
+
+  const screens =
+    document.querySelectorAll(
+      ".screen"
+    );
+
+
+  const visible =
+    Array
+      .from(screens)
+      .find(
+        (screen) =>
+          !screen.classList.contains(
+            "hidden"
+          )
+      );
+
+
+  /*
+    If nothing is visible,
+    show Home.
+  */
+
+  if (!visible) {
+
+    showScreen(
+      "homeScreen"
+    );
+
+  }
+
+
+  /*
+    Otherwise keep current screen.
+  */
+
+}
+
+
+/* =========================================================
+   DOM READY
+   ========================================================= */
+
+if (
+  document.readyState ===
+  "loading"
+) {
+
+  document.addEventListener(
+    "DOMContentLoaded",
+    initializeApplication
+  );
+
+} else {
+
+  initializeApplication();
+
+}
+
+
+/* =========================================================
+   GLOBAL ERROR HANDLING
+   ========================================================= */
+
+window.addEventListener(
+  "error",
+  (event) => {
+
+    console.error(
+      "Exam OMR error:",
+      event.error ||
+        event.message
+    );
+
+  }
+);
+
+
+window.addEventListener(
+  "unhandledrejection",
+  (event) => {
+
+    console.error(
+      "Exam OMR promise error:",
+      event.reason
+    );
+
+  }
+);
+
+
+/* =========================================================
+   NETWORK STATUS
+   ========================================================= */
+
+window.addEventListener(
+  "online",
+  () => {
+
+    console.log(
+      "Internet connection restored."
+    );
+
+  }
+);
+
+
+window.addEventListener(
+  "offline",
+  () => {
+
+    console.warn(
+      "Internet connection lost."
+    );
+
+  }
+);
+
+
+/* =========================================================
+   FINAL SAFETY CHECK
+   ========================================================= */
+
+console.log(
+  "Exam OMR initialized successfully."
+);
+
+
+/* =========================================================
+   END OF script.js
    ========================================================= */
