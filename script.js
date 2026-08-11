@@ -1,6 +1,6 @@
 /* =========================================================
    EXAM OMR
-   FINAL MAIN JAVASCRIPT
+   Main JavaScript
    ========================================================= */
 
 
@@ -29,7 +29,7 @@ const STORAGE_BUCKET = "question-papers";
 
 const OPTION_LABELS = ["A", "B", "C", "D"];
 
-const SUBMISSIONS_TABLE = "submissions";
+const RESULTS_TABLE = "results";
 
 
 /* =========================================================
@@ -49,10 +49,6 @@ let currentAnswerKey = [];
 let selectedAnswers = [];
 
 let testCreatedCode = "";
-
-let currentCandidateName = "";
-
-let currentSubmission = null;
 
 
 /* =========================================================
@@ -88,8 +84,7 @@ function setLoading(
     $("loadingText");
 
   if (loadingText) {
-    loadingText.textContent =
-      text;
+    loadingText.textContent = text;
   }
 
   if (showLoading) {
@@ -109,8 +104,7 @@ function showStatus(
     return;
   }
 
-  element.textContent =
-    message;
+  element.textContent = message;
 
   element.className =
     "status-box";
@@ -157,20 +151,6 @@ function showScreen(screenId) {
 
 
 /* =========================================================
-   SAFE HTML
-   ========================================================= */
-
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
-
-/* =========================================================
    TEST CODE
    ========================================================= */
 
@@ -184,7 +164,7 @@ function generateTestCode() {
     const randomIndex =
       Math.floor(
         Math.random() *
-        characters.length
+          characters.length
       );
 
     code +=
@@ -273,20 +253,21 @@ function renderOptionSettings() {
       Math.min(
         300,
         Number(
-          $("questionCount")?.value
+          $("questionCount").value
         ) || 40
       )
     );
 
   const defaultOptionCount =
     normalizeOptionCount(
-      $("defaultOptions")?.value
+      $("defaultOptions").value
     );
 
   currentQuestionCount =
     count;
 
-  container.innerHTML = "";
+  container.innerHTML =
+    "";
 
   for (
     let i = 1;
@@ -370,14 +351,11 @@ function collectQuestionOptions() {
 
 
 /* =========================================================
-   PDF FILE
+   PDF FILE PREVIEW
    ========================================================= */
 
-const pdfFileInput =
-  $("pdfFile");
-
-if (pdfFileInput) {
-  pdfFileInput.addEventListener(
+if ($("pdfFile")) {
+  $("pdfFile").addEventListener(
     "change",
     (event) => {
       const file =
@@ -392,7 +370,8 @@ if (pdfFileInput) {
       const preview =
         $("pdfPreview");
 
-      currentPdfUrl = "";
+      currentPdfUrl =
+        "";
 
       hide(previewBox);
 
@@ -461,7 +440,9 @@ async function uploadQuestionPaper(
   const fileName =
     `${code}-${Date.now()}.pdf`;
 
-  const { error: uploadError } =
+  const { error:
+    uploadError
+  } =
     await supabaseClient
       .storage
       .from(STORAGE_BUCKET)
@@ -469,8 +450,7 @@ async function uploadQuestionPaper(
         fileName,
         file,
         {
-          cacheControl:
-            "3600",
+          cacheControl: "3600",
           upsert: false,
           contentType:
             "application/pdf"
@@ -514,7 +494,8 @@ function renderAnswerKey() {
     return;
   }
 
-  container.innerHTML = "";
+  container.innerHTML =
+    "";
 
   currentAnswerKey =
     new Array(
@@ -562,15 +543,19 @@ function renderAnswerKey() {
       );
 
     select.innerHTML =
-      `<option value="">
-        Select
-      </option>` +
+      `
+        <option value="">
+          Select
+        </option>
+      ` +
       labels
         .map(
           (label) =>
-            `<option value="${label}">
-              ${label}
-            </option>`
+            `
+              <option value="${label}">
+                ${label}
+              </option>
+            `
         )
         .join("");
 
@@ -616,28 +601,30 @@ function collectAnswerKey() {
    CREATE TEST BUTTON
    ========================================================= */
 
-const generateBtn =
-  $("generateBtn");
-
-if (generateBtn) {
-  generateBtn.addEventListener(
+if ($("generateBtn")) {
+  $("generateBtn").addEventListener(
     "click",
     async () => {
       const name =
-        $("testName")?.value.trim();
+        $("testName")
+          .value
+          .trim();
 
       const pdfFile =
-        $("pdfFile")?.files[0];
+        $("pdfFile")
+          .files[0];
 
       const questionCount =
         Number(
-          $("questionCount")?.value
+          $("questionCount")
+            .value
         );
 
       if (!name) {
         alert(
           "Please enter a test name."
         );
+
         return;
       }
 
@@ -645,6 +632,7 @@ if (generateBtn) {
         alert(
           "Please select the question paper PDF."
         );
+
         return;
       }
 
@@ -658,6 +646,7 @@ if (generateBtn) {
         alert(
           "Question count must be between 1 and 300."
         );
+
         return;
       }
 
@@ -713,7 +702,6 @@ if (generateBtn) {
         showScreen(
           "answerKeyScreen"
         );
-
       } catch (error) {
         console.error(error);
 
@@ -721,7 +709,6 @@ if (generateBtn) {
           "Could not prepare the test.\n\n" +
           error.message
         );
-
       } finally {
         setLoading(false);
       }
@@ -734,17 +721,15 @@ if (generateBtn) {
    SAVE TEST
    ========================================================= */
 
-const saveTestBtn =
-  $("saveTestBtn");
-
-if (saveTestBtn) {
-  saveTestBtn.addEventListener(
+if ($("saveTestBtn")) {
+  $("saveTestBtn").addEventListener(
     "click",
     async () => {
       if (!currentTest) {
         alert(
           "No test is ready to save."
         );
+
         return;
       }
 
@@ -753,24 +738,28 @@ if (saveTestBtn) {
 
       const missingAnswers =
         answerKey.some(
-          (answer) => !answer
+          (answer) =>
+            !answer
         );
 
       if (missingAnswers) {
         alert(
           "Please select the correct answer for every question."
         );
+
         return;
       }
 
       const correctMark =
         Number(
-          $("correctMark")?.value
+          $("correctMark")
+            .value
         );
 
       const wrongMark =
         Number(
-          $("wrongMark")?.value
+          $("wrongMark")
+            .value
         );
 
       if (
@@ -781,6 +770,7 @@ if (saveTestBtn) {
         alert(
           "Please enter a valid correct mark."
         );
+
         return;
       }
 
@@ -792,6 +782,7 @@ if (saveTestBtn) {
         alert(
           "Please enter a valid wrong mark."
         );
+
         return;
       }
 
@@ -827,10 +818,15 @@ if (saveTestBtn) {
             currentTest.code
         };
 
-        const { data, error } =
+        const {
+          data,
+          error
+        } =
           await supabaseClient
             .from("tests")
-            .insert(payload)
+            .insert(
+              payload
+            )
             .select()
             .single();
 
@@ -841,18 +837,13 @@ if (saveTestBtn) {
         testCreatedCode =
           data.code;
 
-        const createdCode =
-          $("createdCode");
-
-        if (createdCode) {
-          createdCode.textContent =
-            testCreatedCode;
-        }
+        $("createdCode")
+          .textContent =
+          testCreatedCode;
 
         showScreen(
           "createdScreen"
         );
-
       } catch (error) {
         console.error(error);
 
@@ -860,7 +851,6 @@ if (saveTestBtn) {
           "Could not save the test.\n\n" +
           error.message
         );
-
       } finally {
         setLoading(false);
       }
@@ -887,11 +877,17 @@ async function loadTestByCode(
     );
   }
 
-  const { data, error } =
+  const {
+    data,
+    error
+  } =
     await supabaseClient
       .from("tests")
       .select("*")
-      .eq("code", cleanCode)
+      .eq(
+        "code",
+        cleanCode
+      )
       .limit(1);
 
   if (error) {
@@ -912,104 +908,23 @@ async function loadTestByCode(
 
 
 /* =========================================================
-   CANDIDATE NAME
-   ========================================================= */
-
-function ensureCandidateNameField() {
-  const joinCard =
-    document.querySelector(
-      ".join-card"
-    );
-
-  if (!joinCard) {
-    return;
-  }
-
-  if (
-    $("candidateName")
-  ) {
-    return;
-  }
-
-  const codeInput =
-    $("joinCode");
-
-  if (!codeInput) {
-    return;
-  }
-
-  const label =
-    document.createElement(
-      "label"
-    );
-
-  label.textContent =
-    "Candidate Name";
-
-  const input =
-    document.createElement(
-      "input"
-    );
-
-  input.id =
-    "candidateName";
-
-  input.type =
-    "text";
-
-  input.placeholder =
-    "Enter your full name";
-
-  input.autocomplete =
-    "name";
-
-  codeInput.parentNode.insertBefore(
-    label,
-    codeInput
-  );
-
-  codeInput.parentNode.insertBefore(
-    input,
-    codeInput
-  );
-}
-
-
-/* =========================================================
    JOIN TEST
    ========================================================= */
 
-const joinBtn =
-  $("joinBtn");
-
-if (joinBtn) {
-  joinBtn.addEventListener(
+if ($("joinBtn")) {
+  $("joinBtn").addEventListener(
     "click",
     async () => {
       const code =
         $("joinCode")
-          ?.value
+          .value
           .trim()
           .toUpperCase();
-
-      const candidateName =
-        $("candidateName")
-          ?.value
-          .trim();
 
       const status =
         $("joinStatus");
 
       hideStatus(status);
-
-      if (!candidateName) {
-        showStatus(
-          status,
-          "Please enter your name.",
-          "error"
-        );
-        return;
-      }
 
       if (!code) {
         showStatus(
@@ -1017,6 +932,7 @@ if (joinBtn) {
           "Please enter the test code.",
           "error"
         );
+
         return;
       }
 
@@ -1033,9 +949,6 @@ if (joinBtn) {
 
         currentTest =
           test;
-
-        currentCandidateName =
-          candidateName;
 
         currentQuestionCount =
           Number(
@@ -1065,28 +978,25 @@ if (joinBtn) {
             currentQuestionCount
           ).fill("");
 
-        if ($("examName")) {
-          $("examName")
-            .textContent =
-            test.name;
-        }
+        $("examName")
+          .textContent =
+          test.name;
 
-        if ($("examInfo")) {
-          $("examInfo")
-            .textContent =
-            `${currentQuestionCount} Questions • Code: ${test.code}`;
-        }
+        $("examInfo")
+          .textContent =
+          `${currentQuestionCount} Questions • Code: ${test.code}`;
 
-        setupPdfViewer(
+        renderExamPdf(
           test.pdf_url
         );
 
         renderExam();
 
+        ensureCandidateNameField();
+
         showScreen(
           "examScreen"
         );
-
       } catch (error) {
         console.error(error);
 
@@ -1095,7 +1005,6 @@ if (joinBtn) {
           error.message,
           "error"
         );
-
       } finally {
         setLoading(false);
       }
@@ -1105,32 +1014,108 @@ if (joinBtn) {
 
 
 /* =========================================================
-   PDF VIEWER
+   EXAM PDF
    ========================================================= */
 
-function setupPdfViewer(
+function renderExamPdf(
   pdfUrl
 ) {
-  const iframe =
+  const pdf =
     $("examPdf");
 
-  if (!iframe) {
+  if (!pdf) {
     return;
   }
 
-  iframe.src =
+  pdf.src =
     pdfUrl;
 
-  iframe.setAttribute(
-    "allow",
-    "fullscreen"
+  let openButton =
+    $("openPdfButton");
+
+  if (!openButton) {
+    openButton =
+      document.createElement(
+        "a"
+      );
+
+    openButton.id =
+      "openPdfButton";
+
+    openButton.className =
+      "secondary-btn full-btn";
+
+    openButton.target =
+      "_blank";
+
+    openButton.rel =
+      "noopener";
+
+    openButton.textContent =
+      "Open Question Paper";
+
+    pdf.parentElement.appendChild(
+      openButton
+    );
+  }
+
+  openButton.href =
+    pdfUrl;
+}
+
+
+/* =========================================================
+   CANDIDATE NAME
+   ========================================================= */
+
+function ensureCandidateNameField() {
+  const omrHeader =
+    document.querySelector(
+      ".omr-header"
+    );
+
+  if (!omrHeader) {
+    return;
+  }
+
+  let existing =
+    $("candidateNameField");
+
+  if (existing) {
+    return;
+  }
+
+  const wrapper =
+    document.createElement(
+      "div"
+    );
+
+  wrapper.id =
+    "candidateNameWrapper";
+
+  wrapper.style.marginBottom =
+    "16px";
+
+  wrapper.innerHTML = `
+    <label
+      for="candidateNameField"
+      style="margin-top:0;"
+    >
+      Candidate Name
+    </label>
+
+    <input
+      id="candidateNameField"
+      type="text"
+      placeholder="Enter your full name"
+      autocomplete="name"
+    >
+  `;
+
+  omrHeader.parentElement.insertBefore(
+    wrapper,
+    omrHeader.nextSibling
   );
-
-  iframe.style.width =
-    "100%";
-
-  iframe.style.minHeight =
-    "600px";
 }
 
 
@@ -1146,7 +1131,8 @@ function renderExam() {
     return;
   }
 
-  container.innerHTML = "";
+  container.innerHTML =
+    "";
 
   selectedAnswers =
     new Array(
@@ -1190,7 +1176,7 @@ function renderExam() {
       );
 
     labels.forEach(
-      (option) => {
+      (labelValue) => {
         const label =
           document.createElement(
             "label"
@@ -1211,7 +1197,7 @@ function renderExam() {
           `question-${i}`;
 
         input.value =
-          option;
+          labelValue;
 
         input.dataset.question =
           String(i);
@@ -1220,34 +1206,31 @@ function renderExam() {
           "change",
           () => {
             selectedAnswers[i] =
-              option;
+              input.value;
 
             updateSelectedOption(
               i,
-              option
+              input.value
             );
 
             updateProgress();
           }
         );
 
-        const bubble =
-          document.createElement(
-            "span"
-          );
-
-        bubble.className =
-          "answer-bubble";
-
-        bubble.textContent =
-          option;
-
         label.appendChild(
           input
         );
 
+        const text =
+          document.createElement(
+            "span"
+          );
+
+        text.textContent =
+          labelValue;
+
         label.appendChild(
-          bubble
+          text
         );
 
         row.appendChild(
@@ -1264,10 +1247,6 @@ function renderExam() {
   updateProgress();
 }
 
-
-/* =========================================================
-   SELECTED OPTION
-   ========================================================= */
 
 function updateSelectedOption(
   questionIndex,
@@ -1306,10 +1285,6 @@ function updateSelectedOption(
 }
 
 
-/* =========================================================
-   PROGRESS
-   ========================================================= */
-
 function updateProgress() {
   const answered =
     selectedAnswers.filter(
@@ -1330,86 +1305,44 @@ function updateProgress() {
 
 
 /* =========================================================
-   RESET EXAM
-   ========================================================= */
-
-const resetExamBtn =
-  $("resetExamBtn");
-
-if (resetExamBtn) {
-  resetExamBtn.addEventListener(
-    "click",
-    () => {
-      const confirmed =
-        confirm(
-          "Are you sure you want to delete all selected answers?"
-        );
-
-      if (!confirmed) {
-        return;
-      }
-
-      selectedAnswers =
-        new Array(
-          currentQuestionCount
-        ).fill("");
-
-      document
-        .querySelectorAll(
-          ".answer-option"
-        )
-        .forEach(
-          (label) => {
-            label.classList.remove(
-              "selected"
-            );
-          }
-        );
-
-      document
-        .querySelectorAll(
-          '.answer-option input[type="radio"]'
-        )
-        .forEach(
-          (input) => {
-            input.checked =
-              false;
-          }
-        );
-
-      hide(
-        $("resultBox")
-      );
-
-      updateProgress();
-    }
-  );
-}
-
-
-/* =========================================================
    SUBMIT EXAM
    ========================================================= */
 
-const submitExamBtn =
-  $("submitExamBtn");
-
-if (submitExamBtn) {
-  submitExamBtn.addEventListener(
+if ($("submitExamBtn")) {
+  $("submitExamBtn").addEventListener(
     "click",
     async () => {
       if (!currentTest) {
         return;
       }
 
+      const nameInput =
+        $("candidateNameField");
+
+      const candidateName =
+        nameInput
+          ? nameInput.value.trim()
+          : "";
+
+      if (!candidateName) {
+        alert(
+          "Please enter your name before submitting."
+        );
+
+        if (nameInput) {
+          nameInput.focus();
+        }
+
+        return;
+      }
+
       const unanswered =
         selectedAnswers.filter(
-          (answer) => !answer
+          (answer) =>
+            !answer
         ).length;
 
-      if (
-        unanswered > 0
-      ) {
+      if (unanswered > 0) {
         const proceed =
           confirm(
             `${unanswered} question(s) are unanswered.\n\nSubmit anyway?`
@@ -1420,7 +1353,9 @@ if (submitExamBtn) {
         }
       }
 
-      await calculateResult();
+      await calculateResult(
+        candidateName
+      );
     }
   );
 }
@@ -1430,7 +1365,9 @@ if (submitExamBtn) {
    CALCULATE RESULT
    ========================================================= */
 
-async function calculateResult() {
+async function calculateResult(
+  candidateName
+) {
   const answerKey =
     Array.isArray(
       currentTest.answer_key
@@ -1487,7 +1424,9 @@ async function calculateResult() {
     ) -
     (
       wrong *
-      Math.abs(wrongMark)
+      Math.abs(
+        wrongMark
+      )
     );
 
   const totalMarks =
@@ -1503,6 +1442,7 @@ async function calculateResult() {
       : 0;
 
   const result = {
+    candidateName,
     correct,
     wrong,
     unanswered,
@@ -1511,83 +1451,81 @@ async function calculateResult() {
     percentage
   };
 
-  currentSubmission =
-    result;
-
-  renderResult(
-    result
+  setLoading(
+    true,
+    "Saving your result..."
   );
 
-  await saveSubmission(
-    result
-  );
+  try {
+    await saveResult(
+      result
+    );
+
+    renderResult(
+      result
+    );
+  } catch (error) {
+    console.error(error);
+
+    alert(
+      "Your result could not be saved.\n\n" +
+      error.message
+    );
+  } finally {
+    setLoading(false);
+  }
 }
 
 
 /* =========================================================
-   SAVE SUBMISSION
+   SAVE RESULT TO SUPABASE
    ========================================================= */
 
-async function saveSubmission(
+async function saveResult(
   result
 ) {
-  if (
-    !currentTest ||
-    !currentCandidateName
-  ) {
-    return;
-  }
+  const payload = {
+    test_code:
+      currentTest.code,
 
-  try {
-    const payload = {
-      test_code:
-        currentTest.code,
+    candidate_name:
+      result.candidateName,
 
-      candidate_name:
-        currentCandidateName,
+    answers:
+      selectedAnswers,
 
-      answers:
-        selectedAnswers,
+    correct_count:
+      result.correct,
 
-      correct_count:
-        result.correct,
+    wrong_count:
+      result.wrong,
 
-      wrong_count:
-        result.wrong,
+    unanswered_count:
+      result.unanswered,
 
-      unanswered_count:
-        result.unanswered,
+    score:
+      result.score,
 
-      score:
-        result.score,
+    total_marks:
+      result.totalMarks,
 
-      total_marks:
-        result.totalMarks,
+    percentage:
+      result.percentage
+  };
 
-      percentage:
-        result.percentage
-    };
-
-    const { error } =
-      await supabaseClient
-        .from(
-          SUBMISSIONS_TABLE
-        )
-        .insert(
-          payload
-        );
-
-    if (error) {
-      console.error(
-        "Could not save submission:",
-        error
+  const {
+    error
+  } =
+    await supabaseClient
+      .from(
+        RESULTS_TABLE
+      )
+      .insert(
+        payload
       );
-    }
-  } catch (error) {
-    console.error(
-      "Submission error:",
-      error
-    );
+
+  if (error) {
+    throw error;
   }
 }
 
@@ -1611,14 +1549,14 @@ function renderResult(
       Result
     </div>
 
-    <div class="result-candidate">
-      <span>Candidate</span>
+    <p>
+      Candidate:
       <strong>
         ${escapeHtml(
-          currentCandidateName
+          result.candidateName
         )}
       </strong>
-    </div>
+    </p>
 
     <div class="result-stats">
 
@@ -1654,7 +1592,9 @@ function renderResult(
 
     <div class="score-display">
 
-      <span>Score</span>
+      <span>
+        Score
+      </span>
 
       <strong>
         ${formatNumber(
@@ -1667,29 +1607,29 @@ function renderResult(
       </strong>
 
     </div>
-
-    <div class="result-saved">
-      Result saved successfully.
-    </div>
   `;
 
   show(resultBox);
 
   resultBox.scrollIntoView({
-    behavior: "smooth",
-    block: "nearest"
+    behavior:
+      "smooth",
+    block:
+      "nearest"
   });
 }
 
 
 /* =========================================================
-   FORMAT NUMBER
+   FORMATTERS
    ========================================================= */
 
 function formatNumber(
   number
 ) {
-  return Number(number)
+  return Number(
+    number
+  )
     .toFixed(2)
     .replace(
       /\.00$/,
@@ -1698,629 +1638,127 @@ function formatNumber(
 }
 
 
-/* =========================================================
-   RESULT CHECK UI
-   ========================================================= */
-
-function createResultScreens() {
-  if (
-    $("resultCheckScreen")
-  ) {
-    return;
-  }
-
-  const main =
-    document.querySelector(
-      "main"
-    );
-
-  if (!main) {
-    return;
-  }
-
-  const section =
-    document.createElement(
-      "section"
-    );
-
-  section.id =
-    "resultCheckScreen";
-
-  section.className =
-    "screen hidden";
-
-  section.innerHTML = `
-    <div class="card result-check-card">
-
-      <div class="section-header">
-
-        <div>
-          <h2>Check Result</h2>
-
-          <p>
-            Enter the same Test Code used for the examination.
-          </p>
-        </div>
-
-        <button
-          id="backHomeFromResult"
-          class="small-btn secondary-btn"
-        >
-          ← Back
-        </button>
-
-      </div>
-
-      <label>
-        Test Code
-      </label>
-
-      <input
-        id="resultTestCode"
-        type="text"
-        maxlength="6"
-        placeholder="E.g. A7K92P"
-        autocomplete="off"
-      >
-
-      <label>
-        Candidate Name
-      </label>
-
-      <input
-        id="resultCandidateName"
-        type="text"
-        placeholder="Enter candidate name"
-        autocomplete="name"
-      >
-
-      <button
-        id="checkMyResultBtn"
-        class="primary-btn full-btn"
-      >
-        Check My Result
-      </button>
-
-      <div
-        id="resultCheckStatus"
-        class="status-box hidden"
-      ></div>
-
-      <div
-        id="myResultBox"
-        class="result-box hidden"
-      ></div>
-
-    </div>
-  `;
-
-  main.appendChild(
-    section
-  );
-
-  $("backHomeFromResult")
-    ?.addEventListener(
-      "click",
-      () => {
-        showScreen(
-          "homeScreen"
-        );
-      }
-    );
-
-  $("checkMyResultBtn")
-    ?.addEventListener(
-      "click",
-      checkMyResult
-    );
-}
-
-
-/* =========================================================
-   ALL RESULTS SCREEN
-   ========================================================= */
-
-function createAllResultsScreen() {
-  if (
-    $("allResultsScreen")
-  ) {
-    return;
-  }
-
-  const main =
-    document.querySelector(
-      "main"
-    );
-
-  if (!main) {
-    return;
-  }
-
-  const section =
-    document.createElement(
-      "section"
-    );
-
-  section.id =
-    "allResultsScreen";
-
-  section.className =
-    "screen hidden";
-
-  section.innerHTML = `
-    <div class="card">
-
-      <div class="section-header">
-
-        <div>
-          <h2>All Results</h2>
-
-          <p>
-            Enter a Test Code to view all submitted results.
-          </p>
-        </div>
-
-        <button
-          id="backHomeFromAllResults"
-          class="small-btn secondary-btn"
-        >
-          ← Back
-        </button>
-
-      </div>
-
-      <div class="result-search-row">
-
-        <input
-          id="allResultsCode"
-          type="text"
-          maxlength="6"
-          placeholder="Enter Test Code"
-          autocomplete="off"
-        >
-
-        <button
-          id="loadAllResultsBtn"
-          class="primary-btn"
-        >
-          View Results
-        </button>
-
-      </div>
-
-      <div
-        id="allResultsStatus"
-        class="status-box hidden"
-      ></div>
-
-      <div
-        id="allResultsContainer"
-        class="all-results-container hidden"
-      ></div>
-
-    </div>
-  `;
-
-  main.appendChild(
-    section
-  );
-
-  $("backHomeFromAllResults")
-    ?.addEventListener(
-      "click",
-      () => {
-        showScreen(
-          "homeScreen"
-        );
-      }
-    );
-
-  $("loadAllResultsBtn")
-    ?.addEventListener(
-      "click",
-      loadAllResults
-    );
-}
-
-
-/* =========================================================
-   CHECK MY RESULT
-   ========================================================= */
-
-async function checkMyResult() {
-  const code =
-    $("resultTestCode")
-      ?.value
-      .trim()
-      .toUpperCase();
-
-  const name =
-    $("resultCandidateName")
-      ?.value
-      .trim();
-
-  const status =
-    $("resultCheckStatus");
-
-  const resultBox =
-    $("myResultBox");
-
-  hide(resultBox);
-
-  if (!code) {
-    showStatus(
-      status,
-      "Please enter the Test Code.",
-      "error"
-    );
-    return;
-  }
-
-  if (!name) {
-    showStatus(
-      status,
-      "Please enter the candidate name.",
-      "error"
-    );
-    return;
-  }
-
-  setLoading(
-    true,
-    "Checking result..."
-  );
-
-  try {
-    const { data, error } =
-      await supabaseClient
-        .from(
-          SUBMISSIONS_TABLE
-        )
-        .select("*")
-        .eq(
-          "test_code",
-          code
-        )
-        .ilike(
-          "candidate_name",
-          name
-        )
-        .order(
-          "submitted_at",
-          {
-            ascending: false
-          }
-        )
-        .limit(1);
-
-    if (error) {
-      throw error;
-    }
-
-    if (
-      !data ||
-      data.length === 0
-    ) {
-      throw new Error(
-        "No result found. Please check the Test Code and candidate name."
-      );
-    }
-
-    renderSavedResult(
-      data[0],
-      resultBox
-    );
-
-    show(resultBox);
-
-    hideStatus(status);
-
-  } catch (error) {
-    console.error(error);
-
-    showStatus(
-      status,
-      error.message,
-      "error"
-    );
-
-  } finally {
-    setLoading(false);
-  }
-}
-
-
-/* =========================================================
-   RENDER SAVED RESULT
-   ========================================================= */
-
-function renderSavedResult(
-  submission,
-  container
+function escapeHtml(
+  value
 ) {
-  const score =
-    Number(
-      submission.score
-    ) || 0;
-
-  const totalMarks =
-    Number(
-      submission.total_marks
-    ) || 0;
-
-  const percentage =
-    Number(
-      submission.percentage
-    ) || 0;
-
-  container.innerHTML = `
-    <div class="result-title">
-      Result
-    </div>
-
-    <div class="result-candidate">
-      <span>Candidate</span>
-      <strong>
-        ${escapeHtml(
-          submission.candidate_name
-        )}
-      </strong>
-    </div>
-
-    <div class="result-stats">
-
-      <div class="result-stat">
-        <span>Correct</span>
-        <strong>
-          ${submission.correct_count}
-        </strong>
-      </div>
-
-      <div class="result-stat">
-        <span>Wrong</span>
-        <strong>
-          ${submission.wrong_count}
-        </strong>
-      </div>
-
-      <div class="result-stat">
-        <span>Unanswered</span>
-        <strong>
-          ${submission.unanswered_count}
-        </strong>
-      </div>
-
-      <div class="result-stat">
-        <span>Percentage</span>
-        <strong>
-          ${percentage.toFixed(2)}%
-        </strong>
-      </div>
-
-    </div>
-
-    <div class="score-display">
-
-      <span>Score</span>
-
-      <strong>
-        ${formatNumber(score)}
-        /
-        ${formatNumber(totalMarks)}
-      </strong>
-
-    </div>
-  `;
+  return String(
+    value
+  )
+    .replace(
+      /&/g,
+      "&amp;"
+    )
+    .replace(
+      /</g,
+      "&lt;"
+    )
+    .replace(
+      />/g,
+      "&gt;"
+    )
+    .replace(
+      /"/g,
+      "&quot;"
+    )
+    .replace(
+      /'/g,
+      "&#039;"
+    );
 }
 
 
 /* =========================================================
-   LOAD ALL RESULTS
+   RESET EXAM
    ========================================================= */
 
-async function loadAllResults() {
-  const code =
-    $("allResultsCode")
-      ?.value
-      .trim()
-      .toUpperCase();
-
-  const status =
-    $("allResultsStatus");
-
-  const container =
-    $("allResultsContainer");
-
-  hide(container);
-
-  if (!code) {
-    showStatus(
-      status,
-      "Please enter a Test Code.",
-      "error"
-    );
-    return;
-  }
-
-  setLoading(
-    true,
-    "Loading all results..."
-  );
-
-  try {
-    const { data, error } =
-      await supabaseClient
-        .from(
-          SUBMISSIONS_TABLE
-        )
-        .select("*")
-        .eq(
-          "test_code",
-          code
-        )
-        .order(
-          "score",
-          {
-            ascending: false
-          }
+if ($("resetExamBtn")) {
+  $("resetExamBtn").addEventListener(
+    "click",
+    () => {
+      const confirmed =
+        confirm(
+          "Are you sure you want to delete all selected answers?"
         );
 
-    if (error) {
-      throw error;
-    }
+      if (!confirmed) {
+        return;
+      }
 
-    if (
-      !data ||
-      data.length === 0
-    ) {
-      throw new Error(
-        "No submitted results found for this Test Code."
-      );
-    }
+      selectedAnswers =
+        new Array(
+          currentQuestionCount
+        ).fill("");
 
-    renderAllResults(
-      data,
-      container
-    );
-
-    show(container);
-
-    hideStatus(status);
-
-  } catch (error) {
-    console.error(error);
-
-    showStatus(
-      status,
-      error.message,
-      "error"
-    );
-
-  } finally {
-    setLoading(false);
-  }
-}
-
-
-/* =========================================================
-   RENDER ALL RESULTS
-   ========================================================= */
-
-function renderAllResults(
-  results,
-  container
-) {
-  container.innerHTML = "";
-
-  const title =
-    document.createElement(
-      "div"
-    );
-
-  title.className =
-    "all-results-title";
-
-  title.innerHTML = `
-    <strong>
-      ${results.length}
-      Result${results.length === 1 ? "" : "s"}
-    </strong>
-  `;
-
-  container.appendChild(
-    title
-  );
-
-  results.forEach(
-    (submission, index) => {
-      const row =
-        document.createElement(
-          "div"
+      const inputs =
+        document.querySelectorAll(
+          ".answer-option input"
         );
 
-      row.className =
-        "result-row";
-
-      row.innerHTML = `
-        <div class="result-rank">
-          ${index + 1}
-        </div>
-
-        <div class="result-person">
-
-          <strong>
-            ${escapeHtml(
-              submission.candidate_name
-            )}
-          </strong>
-
-          <span>
-            ${submission.correct_count}
-            correct •
-            ${submission.wrong_count}
-            wrong
-          </span>
-
-        </div>
-
-        <div class="result-score">
-
-          <strong>
-            ${formatNumber(
-              submission.score
-            )}
-            /
-            ${formatNumber(
-              submission.total_marks
-            )}
-          </strong>
-
-          <span>
-            ${Number(
-              submission.percentage || 0
-            ).toFixed(2)}%
-          </span>
-
-        </div>
-      `;
-
-      container.appendChild(
-        row
+      inputs.forEach(
+        (input) => {
+          input.checked =
+            false;
+        }
       );
+
+      const labels =
+        document.querySelectorAll(
+          ".answer-option"
+        );
+
+      labels.forEach(
+        (label) => {
+          label.classList.remove(
+            "selected"
+          );
+        }
+      );
+
+      hide(
+        $("resultBox")
+      );
+
+      updateProgress();
     }
   );
 }
 
 
 /* =========================================================
-   HOME BUTTONS
+   HOME / NAVIGATION
    ========================================================= */
 
-function setupHomeButtons() {
+if ($("showCreateBtn")) {
   $("showCreateBtn")
-    ?.addEventListener(
+    .addEventListener(
       "click",
       () => {
         showScreen(
           "createScreen"
         );
+
+        renderOptionSettings();
       }
     );
+}
 
+
+if ($("showJoinBtn")) {
   $("showJoinBtn")
-    ?.addEventListener(
+    .addEventListener(
       "click",
       () => {
         showScreen(
           "joinScreen"
         );
-
-        ensureCandidateNameField();
       }
     );
+}
 
+
+if ($("backHomeFromCreate")) {
   $("backHomeFromCreate")
-    ?.addEventListener(
+    .addEventListener(
       "click",
       () => {
         showScreen(
@@ -2328,9 +1766,12 @@ function setupHomeButtons() {
         );
       }
     );
+}
 
+
+if ($("backHomeFromJoin")) {
   $("backHomeFromJoin")
-    ?.addEventListener(
+    .addEventListener(
       "click",
       () => {
         showScreen(
@@ -2338,9 +1779,12 @@ function setupHomeButtons() {
         );
       }
     );
+}
 
+
+if ($("backToCreateBtn")) {
   $("backToCreateBtn")
-    ?.addEventListener(
+    .addEventListener(
       "click",
       () => {
         showScreen(
@@ -2348,9 +1792,12 @@ function setupHomeButtons() {
         );
       }
     );
+}
 
+
+if ($("goHomeAfterCreate")) {
   $("goHomeAfterCreate")
-    ?.addEventListener(
+    .addEventListener(
       "click",
       () => {
         showScreen(
@@ -2358,50 +1805,12 @@ function setupHomeButtons() {
         );
       }
     );
+}
 
-  $("copyCodeBtn")
-    ?.addEventListener(
-      "click",
-      async () => {
-        if (
-          !testCreatedCode
-        ) {
-          return;
-        }
 
-        try {
-          await navigator.clipboard.writeText(
-            testCreatedCode
-          );
-
-          const button =
-            $("copyCodeBtn");
-
-          if (button) {
-            const oldText =
-              button.textContent;
-
-            button.textContent =
-              "Copied ✓";
-
-            setTimeout(
-              () => {
-                button.textContent =
-                  oldText;
-              },
-              1500
-            );
-          }
-        } catch {
-          alert(
-            `Test Code: ${testCreatedCode}`
-          );
-        }
-      }
-    );
-
+if ($("exitExamBtn")) {
   $("exitExamBtn")
-    ?.addEventListener(
+    .addEventListener(
       "click",
       () => {
         const confirmed =
@@ -2416,9 +1825,6 @@ function setupHomeButtons() {
         currentTest =
           null;
 
-        currentCandidateName =
-          "";
-
         selectedAnswers =
           [];
 
@@ -2431,7 +1837,377 @@ function setupHomeButtons() {
 
 
 /* =========================================================
-   ADD RESULT BUTTONS
+   COPY TEST CODE
+   ========================================================= */
+
+if ($("copyCodeBtn")) {
+  $("copyCodeBtn")
+    .addEventListener(
+      "click",
+      async () => {
+        const code =
+          $("createdCode")
+            .textContent
+            .trim();
+
+        try {
+          await navigator.clipboard.writeText(
+            code
+          );
+
+          alert(
+            "Test code copied!"
+          );
+        } catch (error) {
+          console.error(error);
+
+          alert(
+            `Test Code: ${code}`
+          );
+        }
+      }
+    );
+}
+
+
+/* =========================================================
+   CLEAR CREATE FORM
+   ========================================================= */
+
+if ($("clearCreateBtn")) {
+  $("clearCreateBtn")
+    .addEventListener(
+      "click",
+      () => {
+        if ($("testName")) {
+          $("testName").value =
+            "";
+        }
+
+        if ($("pdfFile")) {
+          $("pdfFile").value =
+            "";
+        }
+
+        if ($("pdfStatus")) {
+          $("pdfStatus").textContent =
+            "";
+        }
+
+        hide(
+          $("pdfPreviewBox")
+        );
+
+        if ($("questionCount")) {
+          $("questionCount").value =
+            40;
+        }
+
+        if ($("defaultOptions")) {
+          $("defaultOptions").value =
+            "4";
+        }
+
+        currentPdfUrl =
+          "";
+
+        currentOptions =
+          [];
+
+        renderOptionSettings();
+      }
+    );
+}
+
+
+/* =========================================================
+   RESULT SCREENS
+   ========================================================= */
+
+/*
+   IMPORTANT:
+   These screens are created dynamically.
+
+   This prevents duplicate buttons from appearing
+   in the existing index.html.
+*/
+
+function createResultScreens() {
+  removeDuplicateDynamicResultElements();
+
+  const main =
+    document.querySelector(
+      "main.container"
+    );
+
+  if (!main) {
+    return;
+  }
+
+  /* =========================
+     CHECK SINGLE RESULT
+     ========================= */
+
+  const resultScreen =
+    document.createElement(
+      "section"
+    );
+
+  resultScreen.id =
+    "checkResultScreen";
+
+  resultScreen.className =
+    "screen hidden";
+
+  resultScreen.innerHTML = `
+    <div class="card join-card">
+
+      <button
+        id="backHomeFromResult"
+        class="small-btn secondary-btn"
+      >
+        ← Back
+      </button>
+
+      <h2>
+        Check Result
+      </h2>
+
+      <p>
+        Enter the test code and candidate name
+        to view the result.
+      </p>
+
+      <label>
+        Test Code
+      </label>
+
+      <input
+        id="resultTestCode"
+        type="text"
+        maxlength="6"
+        placeholder="E.g.: Q226B9"
+        autocomplete="off"
+      >
+
+      <label>
+        Candidate Name
+      </label>
+
+      <input
+        id="resultCandidateName"
+        type="text"
+        placeholder="Enter candidate name"
+        autocomplete="off"
+      >
+
+      <button
+        id="checkSingleResultBtn"
+        class="primary-btn full-btn"
+        style="margin-top:18px;"
+      >
+        Check Result
+      </button>
+
+      <div
+        id="singleResultOutput"
+        class="result-box hidden"
+      ></div>
+
+      <div
+        id="singleResultStatus"
+        class="status-box hidden"
+      ></div>
+
+    </div>
+  `;
+
+  main.appendChild(
+    resultScreen
+  );
+
+
+  /* =========================
+     CHECK ALL RESULTS
+     ========================= */
+
+  const allResultsScreen =
+    document.createElement(
+      "section"
+    );
+
+  allResultsScreen.id =
+    "checkResultsScreen";
+
+  allResultsScreen.className =
+    "screen hidden";
+
+  allResultsScreen.innerHTML = `
+    <div class="card">
+
+      <div class="section-header">
+
+        <div>
+          <h2>
+            Check Results
+          </h2>
+
+          <p>
+            Enter the test code to view
+            all submitted candidates.
+          </p>
+        </div>
+
+        <button
+          id="backHomeFromResults"
+          class="small-btn secondary-btn"
+        >
+          ← Back
+        </button>
+
+      </div>
+
+      <input
+        id="allResultsTestCode"
+        type="text"
+        maxlength="6"
+        placeholder="Enter Test Code"
+        autocomplete="off"
+      >
+
+      <button
+        id="checkAllResultsBtn"
+        class="primary-btn"
+        style="margin-top:14px;"
+      >
+        View All Results
+      </button>
+
+      <div
+        id="allResultsStatus"
+        class="status-box hidden"
+      ></div>
+
+      <div
+        id="allResultsOutput"
+        style="margin-top:18px;"
+      ></div>
+
+    </div>
+  `;
+
+  main.appendChild(
+    allResultsScreen
+  );
+
+
+  attachResultNavigation();
+}
+
+
+/* =========================================================
+   REMOVE DUPLICATE DYNAMIC ELEMENTS
+   ========================================================= */
+
+function removeDuplicateDynamicResultElements() {
+  const dynamicIds = [
+    "checkResultScreen",
+    "checkResultsScreen"
+  ];
+
+  dynamicIds.forEach(
+    (id) => {
+      const elements =
+        document.querySelectorAll(
+          `#${id}`
+        );
+
+      if (
+        elements.length > 1
+      ) {
+        for (
+          let i = 1;
+          i < elements.length;
+          i++
+        ) {
+          elements[i].remove();
+        }
+      }
+    }
+  );
+
+  const homeActions =
+    document.querySelector(
+      ".home-actions"
+    );
+
+  if (!homeActions) {
+    return;
+  }
+
+  /*
+     Remove old dynamically-created result buttons.
+     We identify them using their IDs.
+  */
+
+  [
+    "dynamicCheckResultBtn",
+    "dynamicCheckResultsBtn"
+  ].forEach(
+    (id) => {
+      const element =
+        $(id);
+
+      if (element) {
+        element.remove();
+      }
+    }
+  );
+
+  /*
+     Remove duplicate result buttons that may
+     have been generated by an older version.
+  */
+
+  const buttons =
+    Array.from(
+      homeActions.querySelectorAll(
+        "button"
+      )
+    );
+
+  const resultButtons =
+    buttons.filter(
+      (button) => {
+        const text =
+          button.textContent
+            .trim()
+            .toLowerCase();
+
+        return (
+          text ===
+            "check result" ||
+          text ===
+            "check results"
+        );
+      }
+    );
+
+  /*
+     The old dynamically-generated buttons
+     are removed completely.
+  */
+
+  resultButtons.forEach(
+    (button) => {
+      button.remove();
+    }
+  );
+}
+
+
+/* =========================================================
+   CREATE ONLY TWO HOME RESULT BUTTONS
    ========================================================= */
 
 function createHomeResultButtons() {
@@ -2444,234 +2220,646 @@ function createHomeResultButtons() {
     return;
   }
 
-  if (
-    !$("showResultBtn")
-  ) {
-    const button =
-      document.createElement(
-        "button"
-      );
+  /*
+     Remove any previous result buttons.
+  */
 
-    button.id =
-      "showResultBtn";
-
-    button.className =
-      "secondary-btn";
-
-    button.textContent =
-      "Check Result";
-
-    homeActions.appendChild(
-      button
+  homeActions
+    .querySelectorAll(
+      ".result-home-button"
+    )
+    .forEach(
+      (button) =>
+        button.remove()
     );
 
-    button.addEventListener(
-      "click",
-      () => {
-        createResultScreens();
+  /*
+     Remove old buttons by text.
+  */
 
-        showScreen(
-          "resultCheckScreen"
-        );
+  Array.from(
+    homeActions.querySelectorAll(
+      "button"
+    )
+  ).forEach(
+    (button) => {
+      const text =
+        button.textContent
+          .trim()
+          .toLowerCase();
+
+      if (
+        text ===
+          "check result" ||
+        text ===
+          "check results"
+      ) {
+        button.remove();
       }
+    }
+  );
+
+
+  /* =========================
+     SINGLE RESULT
+     ========================= */
+
+  const singleButton =
+    document.createElement(
+      "button"
     );
+
+  singleButton.id =
+    "dynamicCheckResultBtn";
+
+  singleButton.className =
+    "secondary-btn full-btn result-home-button";
+
+  singleButton.textContent =
+    "Check Result";
+
+
+  /* =========================
+     ALL RESULTS
+     ========================= */
+
+  const allButton =
+    document.createElement(
+      "button"
+    );
+
+  allButton.id =
+    "dynamicCheckResultsBtn";
+
+  allButton.className =
+    "secondary-btn full-btn result-home-button";
+
+  allButton.textContent =
+    "Check Results";
+
+
+  homeActions.appendChild(
+    singleButton
+  );
+
+  homeActions.appendChild(
+    allButton
+  );
+
+
+  singleButton.addEventListener(
+    "click",
+    () => {
+      showScreen(
+        "checkResultScreen"
+      );
+    }
+  );
+
+
+  allButton.addEventListener(
+    "click",
+    () => {
+      showScreen(
+        "checkResultsScreen"
+      );
+    }
+  );
+}
+
+
+/* =========================================================
+   RESULT NAVIGATION
+   ========================================================= */
+
+function attachResultNavigation() {
+  if ($("backHomeFromResult")) {
+    $("backHomeFromResult")
+      .addEventListener(
+        "click",
+        () => {
+          showScreen(
+            "homeScreen"
+          );
+        }
+      );
   }
 
-  if (
-    !$("showAllResultsBtn")
-  ) {
-    const button =
-      document.createElement(
-        "button"
+
+  if ($("backHomeFromResults")) {
+    $("backHomeFromResults")
+      .addEventListener(
+        "click",
+        () => {
+          showScreen(
+            "homeScreen"
+          );
+        }
       );
+  }
 
-    button.id =
-      "showAllResultsBtn";
 
-    button.className =
-      "secondary-btn";
+  if ($("checkSingleResultBtn")) {
+    $("checkSingleResultBtn")
+      .addEventListener(
+        "click",
+        checkSingleResult
+      );
+  }
 
-    button.textContent =
-      "Check Results";
 
-    homeActions.appendChild(
-      button
-    );
-
-    button.addEventListener(
-      "click",
-      () => {
-        createAllResultsScreen();
-
-        showScreen(
-          "allResultsScreen"
-        );
-      }
-    );
+  if ($("checkAllResultsBtn")) {
+    $("checkAllResultsBtn")
+      .addEventListener(
+        "click",
+        checkAllResults
+      );
   }
 }
 
 
 /* =========================================================
-   MOBILE PDF FALLBACK
+   CHECK ONE RESULT
    ========================================================= */
 
-function setupMobilePdfFallback() {
+async function checkSingleResult() {
+  const code =
+    $("resultTestCode")
+      .value
+      .trim()
+      .toUpperCase();
+
+  const candidateName =
+    $("resultCandidateName")
+      .value
+      .trim();
+
+  const status =
+    $("singleResultStatus");
+
+  const output =
+    $("singleResultOutput");
+
+  hideStatus(status);
+
+  hide(output);
+
+  if (!code) {
+    showStatus(
+      status,
+      "Please enter the test code.",
+      "error"
+    );
+
+    return;
+  }
+
+  if (!candidateName) {
+    showStatus(
+      status,
+      "Please enter the candidate name.",
+      "error"
+    );
+
+    return;
+  }
+
+  setLoading(
+    true,
+    "Checking result..."
+  );
+
+  try {
+    const {
+      data,
+      error
+    } =
+      await supabaseClient
+        .from(
+          RESULTS_TABLE
+        )
+        .select("*")
+        .eq(
+          "test_code",
+          code
+        )
+        .ilike(
+          "candidate_name",
+          candidateName
+        )
+        .order(
+          "submitted_at",
+          {
+            ascending:
+              false
+          }
+        )
+        .limit(1);
+
+    if (error) {
+      throw error;
+    }
+
+    if (
+      !data ||
+      data.length === 0
+    ) {
+      showStatus(
+        status,
+        "No result found. Check the test code and candidate name.",
+        "error"
+      );
+
+      return;
+    }
+
+    const result =
+      data[0];
+
+    renderSingleCheckedResult(
+      result
+    );
+
+    show(output);
+  } catch (error) {
+    console.error(error);
+
+    showStatus(
+      status,
+      error.message,
+      "error"
+    );
+  } finally {
+    setLoading(false);
+  }
+}
+
+
+/* =========================================================
+   SINGLE RESULT DISPLAY
+   ========================================================= */
+
+function renderSingleCheckedResult(
+  result
+) {
+  const output =
+    $("singleResultOutput");
+
+  if (!output) {
+    return;
+  }
+
+  output.innerHTML = `
+    <div class="result-title">
+      ${escapeHtml(
+        result.candidate_name
+      )}
+    </div>
+
+    <div class="result-stats">
+
+      <div class="result-stat">
+        <span>Correct</span>
+        <strong>
+          ${result.correct_count}
+        </strong>
+      </div>
+
+      <div class="result-stat">
+        <span>Wrong</span>
+        <strong>
+          ${result.wrong_count}
+        </strong>
+      </div>
+
+      <div class="result-stat">
+        <span>Unanswered</span>
+        <strong>
+          ${result.unanswered_count}
+        </strong>
+      </div>
+
+      <div class="result-stat">
+        <span>Percentage</span>
+        <strong>
+          ${formatNumber(
+            result.percentage
+          )}%
+        </strong>
+      </div>
+
+    </div>
+
+    <div class="score-display">
+
+      <span>
+        Score
+      </span>
+
+      <strong>
+        ${formatNumber(
+          result.score
+        )}
+        /
+        ${formatNumber(
+          result.total_marks
+        )}
+      </strong>
+
+    </div>
+  `;
+}
+
+
+/* =========================================================
+   CHECK ALL RESULTS
+   ========================================================= */
+
+async function checkAllResults() {
+  const code =
+    $("allResultsTestCode")
+      .value
+      .trim()
+      .toUpperCase();
+
+  const status =
+    $("allResultsStatus");
+
+  const output =
+    $("allResultsOutput");
+
+  hideStatus(status);
+
+  output.innerHTML =
+    "";
+
+  if (!code) {
+    showStatus(
+      status,
+      "Please enter the test code.",
+      "error"
+    );
+
+    return;
+  }
+
+  setLoading(
+    true,
+    "Loading all results..."
+  );
+
+  try {
+    const {
+      data,
+      error
+    } =
+      await supabaseClient
+        .from(
+          RESULTS_TABLE
+        )
+        .select(
+          `
+            candidate_name,
+            correct_count,
+            wrong_count,
+            unanswered_count,
+            score,
+            total_marks,
+            percentage,
+            submitted_at
+          `
+        )
+        .eq(
+          "test_code",
+          code
+        )
+        .order(
+          "score",
+          {
+            ascending:
+              false
+          }
+        );
+
+    if (error) {
+      throw error;
+    }
+
+    if (
+      !data ||
+      data.length === 0
+    ) {
+      showStatus(
+        status,
+        "No submitted results found for this test code.",
+        "error"
+      );
+
+      return;
+    }
+
+    renderAllResults(
+      data,
+      code
+    );
+  } catch (error) {
+    console.error(error);
+
+    showStatus(
+      status,
+      error.message,
+      "error"
+    );
+  } finally {
+    setLoading(false);
+  }
+}
+
+
+/* =========================================================
+   ALL RESULTS DISPLAY
+   ========================================================= */
+
+function renderAllResults(
+  results,
+  code
+) {
+  const output =
+    $("allResultsOutput");
+
+  if (!output) {
+    return;
+  }
+
+  const rows =
+    results
+      .map(
+        (result, index) => `
+          <tr>
+
+            <td>
+              ${index + 1}
+            </td>
+
+            <td>
+              ${escapeHtml(
+                result.candidate_name
+              )}
+            </td>
+
+            <td>
+              ${result.correct_count}
+            </td>
+
+            <td>
+              ${result.wrong_count}
+            </td>
+
+            <td>
+              ${result.unanswered_count}
+            </td>
+
+            <td>
+              <strong>
+                ${formatNumber(
+                  result.score
+                )}
+              </strong>
+              /
+              ${formatNumber(
+                result.total_marks
+              )}
+            </td>
+
+            <td>
+              ${formatNumber(
+                result.percentage
+              )}%
+            </td>
+
+          </tr>
+        `
+      )
+      .join("");
+
+  output.innerHTML = `
+    <div
+      style="
+        overflow-x:auto;
+        border:1px solid var(--border);
+        border-radius:12px;
+      "
+    >
+
+      <table
+        style="
+          width:100%;
+          border-collapse:collapse;
+          background:#ffffff;
+          min-width:700px;
+        "
+      >
+
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Candidate</th>
+            <th>Correct</th>
+            <th>Wrong</th>
+            <th>Unanswered</th>
+            <th>Score</th>
+            <th>Percentage</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          ${rows}
+        </tbody>
+
+      </table>
+
+    </div>
+
+    <p
+      style="
+        margin-top:12px;
+        font-size:13px;
+      "
+    >
+      Test Code:
+      <strong>
+        ${escapeHtml(code)}
+      </strong>
+      •
+      ${results.length}
+      candidate(s)
+    </p>
+  `;
+
+  addResultTableStyles();
+}
+
+
+/* =========================================================
+   RESULT TABLE STYLES
+   ========================================================= */
+
+function addResultTableStyles() {
+  if (
+    $("resultTableStyles")
+  ) {
+    return;
+  }
+
   const style =
     document.createElement(
       "style"
     );
 
+  style.id =
+    "resultTableStyles";
+
   style.textContent = `
-    .mobile-pdf-link {
-      display: none;
-      margin-top: 10px;
-    }
-
-    @media (max-width: 650px) {
-      .mobile-pdf-link {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 100%;
-      }
-    }
-
-    .result-candidate {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      margin-bottom: 14px;
-      padding: 12px 14px;
-      border-radius: 10px;
-      background: #ffffff;
-      border: 1px solid var(--border);
-    }
-
-    .result-candidate span {
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    .result-candidate strong {
-      font-size: 15px;
-    }
-
-    .result-saved {
-      margin-top: 14px;
-      padding: 10px 12px;
-      border-radius: 9px;
-      background: var(--success-soft);
-      color: var(--success);
-      font-size: 13px;
-      font-weight: 700;
-    }
-
-    .result-search-row {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 10px;
-    }
-
-    .all-results-container {
-      margin-top: 18px;
-    }
-
-    .all-results-title {
-      margin-bottom: 10px;
-      font-size: 16px;
-    }
-
-    .result-row {
-      display: grid;
-      grid-template-columns: 42px minmax(0, 1fr) auto;
-      align-items: center;
-      gap: 12px;
-      padding: 13px;
-      margin-bottom: 8px;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      background: #ffffff;
-    }
-
-    .result-rank {
-      width: 32px;
-      height: 32px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 50%;
-      background: var(--primary-soft);
-      color: var(--primary);
-      font-weight: 850;
-    }
-
-    .result-person {
-      min-width: 0;
-    }
-
-    .result-person strong,
-    .result-person span {
-      display: block;
-    }
-
-    .result-person strong {
-      overflow: hidden;
-      text-overflow: ellipsis;
+    #allResultsOutput table th,
+    #allResultsOutput table td {
+      padding: 11px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
       white-space: nowrap;
     }
 
-    .result-person span,
-    .result-score span {
+    #allResultsOutput table th {
+      font-size: 12px;
       color: var(--muted);
-      font-size: 12px;
+      background: #fafafa;
     }
 
-    .result-score {
-      text-align: right;
+    #allResultsOutput table td {
+      font-size: 13px;
     }
 
-    .result-score strong,
-    .result-score span {
+    #allResultsOutput table tr:last-child td {
+      border-bottom: none;
+    }
+
+    #allResultsOutput table tbody tr:hover {
+      background: #faf9ff;
+    }
+
+    #openPdfButton {
       display: block;
+      margin-top: 12px;
+      text-align: center;
+      text-decoration: none;
     }
 
-    .answer-bubble {
-      width: 25px;
-      height: 25px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 50%;
-      border: 1.5px solid currentColor;
-      font-size: 12px;
-      font-weight: 850;
-    }
-
-    .answer-option.selected .answer-bubble {
-      background: var(--primary);
-      color: #ffffff;
-      border-color: var(--primary);
+    #candidateNameWrapper input {
+      width: 100%;
     }
 
     @media (max-width: 650px) {
-      .result-search-row {
-        grid-template-columns: 1fr;
-      }
-
-      .result-row {
-        grid-template-columns: 34px minmax(0, 1fr) auto;
-        gap: 8px;
-      }
-
-      .result-score strong {
-        font-size: 14px;
-      }
-
-      .result-candidate {
-        flex-direction: column;
-        align-items: flex-start;
+      #allResultsOutput table {
+        min-width: 680px;
       }
     }
   `;
@@ -2683,100 +2871,47 @@ function setupMobilePdfFallback() {
 
 
 /* =========================================================
-   PDF OPEN BUTTON
+   INITIALIZE
    ========================================================= */
 
-function addPdfOpenButton() {
-  const pdfCard =
-    document.querySelector(
-      ".pdf-card"
-    );
+function initializeApp() {
+  /*
+     Create result pages first.
+  */
 
-  if (!pdfCard) {
-    return;
-  }
+  createResultScreens();
+
+  /*
+     Create exactly two result buttons.
+  */
+
+  createHomeResultButtons();
+
+  /*
+     Render default question options.
+  */
 
   if (
-    $("openPdfBtn")
+    $("optionSettings") &&
+    $("questionCount")
   ) {
-    return;
-  }
-
-  const button =
-    document.createElement(
-      "a"
-    );
-
-  button.id =
-    "openPdfBtn";
-
-  button.className =
-    "secondary-btn mobile-pdf-link";
-
-  button.target =
-    "_blank";
-
-  button.rel =
-    "noopener";
-
-  button.textContent =
-    "Open Question Paper";
-
-  pdfCard.insertBefore(
-    button,
-    $("examPdf")
-  );
-
-  const observer =
-    new MutationObserver(
-      () => {
-        const iframe =
-          $("examPdf");
-
-        if (
-          iframe &&
-          iframe.src
-        ) {
-          button.href =
-            iframe.src;
-        }
-      }
-    );
-
-  const iframe =
-    $("examPdf");
-
-  if (iframe) {
-    observer.observe(
-      iframe,
-      {
-        attributes: true,
-        attributeFilter: [
-          "src"
-        ]
-      }
-    );
+    renderOptionSettings();
   }
 }
 
 
 /* =========================================================
-   INITIALIZATION
+   START
    ========================================================= */
 
-document.addEventListener(
-  "DOMContentLoaded",
-  () => {
-    setupHomeButtons();
-
-    createHomeResultButtons();
-
-    setupMobilePdfFallback();
-
-    addPdfOpenButton();
-
-    ensureCandidateNameField();
-
-    renderOptionSettings();
-  }
-);
+if (
+  document.readyState ===
+  "loading"
+) {
+  document.addEventListener(
+    "DOMContentLoaded",
+    initializeApp
+  );
+} else {
+  initializeApp();
+}
