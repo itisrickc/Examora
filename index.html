@@ -1,26 +1,61 @@
 <!DOCTYPE html>
-<html lang="bn">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <meta
+    name="theme-color"
+    content="#6d4aff"
+  >
 
   <title>Exam OMR</title>
 
-  <link rel="stylesheet" href="style.css">
+  <link
+    rel="stylesheet"
+    href="style.css"
+  >
 </head>
 
 <body>
 
+  <!-- =====================================================
+       HEADER
+       ===================================================== -->
+
   <header class="topbar">
+
     <div class="container brand">
-      Exam OMR
+      <div class="brand-mark">
+        OMR
+      </div>
+
+      <div>
+        Exam OMR
+      </div>
     </div>
+
   </header>
+
+
+  <!-- =====================================================
+       MAIN
+       ===================================================== -->
 
   <main class="container">
 
-    <!-- HOME -->
-    <section id="homeScreen" class="screen">
+
+    <!-- ===================================================
+         HOME
+         =================================================== -->
+
+    <section
+      id="homeScreen"
+      class="screen"
+    >
 
       <div class="hero card">
 
@@ -28,11 +63,13 @@
           OMR
         </div>
 
-        <h1>Simple Online OMR</h1>
+        <h1>
+          Exam OMR
+        </h1>
 
         <p>
-          Upload the question paper PDF,
-          Generate OMR and take the test.
+          Create online tests, upload question papers,
+          generate OMR sheets and check results easily.
         </p>
 
         <div class="home-actions">
@@ -51,6 +88,13 @@
             Join Test with Code
           </button>
 
+          <button
+            id="showResultsBtn"
+            class="ghost-btn"
+          >
+            Check Results
+          </button>
+
         </div>
 
       </div>
@@ -58,7 +102,10 @@
     </section>
 
 
-    <!-- CREATE TEST -->
+    <!-- ===================================================
+         CREATE TEST
+         =================================================== -->
+
     <section
       id="createScreen"
       class="screen hidden"
@@ -69,11 +116,20 @@
         <div class="section-header">
 
           <div>
-            <h2>Create New Test</h2>
+
+            <span class="eyebrow">
+              TEST CREATOR
+            </span>
+
+            <h2>
+              Create New Test
+            </h2>
 
             <p>
-              Create a new test by uploading the question paper PDF and Answer Key.
+              Upload your question paper and configure
+              the OMR sheet.
             </p>
+
           </div>
 
           <button
@@ -86,18 +142,19 @@
         </div>
 
 
-        <label>
-            Test Name
+        <label for="testName">
+          Test Name
         </label>
 
         <input
           id="testName"
           type="text"
-          placeholder="E.g.: Physics Test 1"
+          placeholder="E.g. Physics Test 1"
+          autocomplete="off"
         >
 
 
-        <label>
+        <label for="pdfFile">
           Question Paper PDF
         </label>
 
@@ -118,10 +175,25 @@
           class="pdf-preview hidden"
         >
 
-          <iframe
-            id="pdfPreview"
-            title="Question Paper"
-          ></iframe>
+          <div class="pdf-toolbar">
+
+            <strong>
+              PDF Preview
+            </strong>
+
+            <span
+              id="createPdfPageInfo"
+              class="pdf-page-info"
+            >
+              0 / 0
+            </span>
+
+          </div>
+
+          <div
+            id="createPdfViewer"
+            class="pdf-viewer"
+          ></div>
 
         </div>
 
@@ -130,7 +202,7 @@
 
           <div>
 
-            <label>
+            <label for="questionCount">
               Total Questions
             </label>
 
@@ -147,8 +219,8 @@
 
           <div>
 
-            <label>
-                Default Options
+            <label for="defaultOptions">
+              Default Options
             </label>
 
             <select id="defaultOptions">
@@ -173,7 +245,8 @@
         </h3>
 
         <p class="hint">
-          Select 2 or 4 options for specific questions if needed.
+          Select 2 or 4 options for individual questions
+          when required.
         </p>
 
         <div
@@ -205,7 +278,10 @@
     </section>
 
 
-    <!-- ANSWER KEY -->
+    <!-- ===================================================
+         ANSWER KEY
+         =================================================== -->
+
     <section
       id="answerKeyScreen"
       class="screen hidden"
@@ -217,10 +293,103 @@
 
           <div>
 
-            <h2>Answer Key</h2>
+            <span class="eyebrow">
+              ANSWER KEY
+            </span>
+
+            <h2>
+              Set Answer Key
+            </h2>
 
             <p>
-              Select the correct answer for each question.
+              Enter all answers at once or select them
+              manually.
+            </p>
+
+          </div>
+
+        </div>
+
+
+        <!-- BULK ANSWER KEY -->
+
+        <div class="bulk-answer-card">
+
+          <div class="bulk-answer-header">
+
+            <div>
+
+              <h3>
+                ⚡ Bulk Answer Key
+              </h3>
+
+              <p>
+                Paste answers like:
+                <strong>
+                  B A C D A B
+                </strong>
+              </p>
+
+            </div>
+
+            <span
+              id="answerCountBadge"
+              class="progress-badge"
+            >
+              0 / 0
+            </span>
+
+          </div>
+
+
+          <textarea
+            id="bulkAnswerInput"
+            class="bulk-answer-input"
+            rows="5"
+            placeholder="B A C D A B C D A B..."
+            spellcheck="false"
+          ></textarea>
+
+
+          <div class="bulk-answer-actions">
+
+            <button
+              id="applyBulkAnswerBtn"
+              class="primary-btn"
+            >
+              Apply Answer Key
+            </button>
+
+            <button
+              id="clearBulkAnswerBtn"
+              class="secondary-btn"
+            >
+              Clear
+            </button>
+
+          </div>
+
+
+          <div
+            id="bulkAnswerStatus"
+            class="status-box hidden"
+          ></div>
+
+        </div>
+
+
+        <!-- MANUAL ANSWER KEY -->
+
+        <div class="manual-answer-header">
+
+          <div>
+
+            <h3>
+              Manual Answer Key
+            </h3>
+
+            <p>
+              You can still edit individual answers below.
             </p>
 
           </div>
@@ -234,12 +403,14 @@
         ></div>
 
 
+        <!-- MARKS -->
+
         <div class="form-grid marks-grid">
 
           <div>
 
-            <label>
-              সঠিক উত্তরে নম্বর
+            <label for="correctMark">
+              Marks for Correct Answer
             </label>
 
             <input
@@ -254,8 +425,8 @@
 
           <div>
 
-            <label>
-              ভুল উত্তরে নম্বর
+            <label for="wrongMark">
+              Negative Marking
             </label>
 
             <input
@@ -299,7 +470,10 @@
     </section>
 
 
-    <!-- TEST CREATED -->
+    <!-- ===================================================
+         TEST CREATED
+         =================================================== -->
+
     <section
       id="createdScreen"
       class="screen hidden"
@@ -311,10 +485,16 @@
           ✓
         </div>
 
-        <h2>পরীক্ষা তৈরি হয়েছে!</h2>
+        <span class="eyebrow">
+          TEST READY
+        </span>
+
+        <h2>
+          Test Created Successfully
+        </h2>
 
         <p>
-          এই Test Code-টি দ্বিতীয় ব্যক্তিকে দিন।
+          Share this Test Code with the student.
         </p>
 
 
@@ -331,27 +511,33 @@
         </div>
 
 
-        <button
-          id="copyCodeBtn"
-          class="primary-btn"
-        >
-          Copy Code
-        </button>
+        <div class="stack-actions">
 
+          <button
+            id="copyCodeBtn"
+            class="primary-btn"
+          >
+            Copy Code
+          </button>
 
-        <button
-          id="goHomeAfterCreate"
-          class="secondary-btn full-btn"
-        >
-          Home
-        </button>
+          <button
+            id="goHomeAfterCreate"
+            class="secondary-btn"
+          >
+            Home
+          </button>
+
+        </div>
 
       </div>
 
     </section>
 
 
-    <!-- JOIN -->
+    <!-- ===================================================
+         JOIN TEST
+         =================================================== -->
+
     <section
       id="joinScreen"
       class="screen hidden"
@@ -366,6 +552,14 @@
           ← Back
         </button>
 
+        <div class="join-icon">
+          →
+        </div>
+
+        <span class="eyebrow">
+          STUDENT
+        </span>
+
         <h2>
           Join Test
         </h2>
@@ -375,11 +569,15 @@
         </p>
 
 
+        <label for="joinCode">
+          Test Code
+        </label>
+
         <input
           id="joinCode"
           type="text"
           maxlength="6"
-          placeholder="E.g.: A7K92P"
+          placeholder="A7K92P"
           autocomplete="off"
         >
 
@@ -388,7 +586,7 @@
           id="joinBtn"
           class="primary-btn full-btn"
         >
-          Join Test
+          Continue
         </button>
 
 
@@ -402,7 +600,120 @@
     </section>
 
 
-    <!-- EXAM -->
+    <!-- ===================================================
+         STUDENT DETAILS
+         =================================================== -->
+
+    <section
+      id="studentScreen"
+      class="screen hidden"
+    >
+
+      <div class="card student-card">
+
+        <div class="section-header">
+
+          <div>
+
+            <span class="eyebrow">
+              STUDENT DETAILS
+            </span>
+
+            <h2>
+              Before You Start
+            </h2>
+
+            <p id="studentTestInfo">
+              Enter your details before starting the exam.
+            </p>
+
+          </div>
+
+        </div>
+
+
+        <div class="student-test-preview">
+
+          <strong id="studentTestName">
+            Test
+          </strong>
+
+          <span id="studentTestCode">
+            Code: ------
+          </span>
+
+        </div>
+
+
+        <label for="studentName">
+          Name
+        </label>
+
+        <input
+          id="studentName"
+          type="text"
+          placeholder="Enter your name"
+          autocomplete="name"
+        >
+
+
+        <label for="studentRoll">
+          Roll Number
+        </label>
+
+        <input
+          id="studentRoll"
+          type="text"
+          placeholder="Enter roll number"
+          autocomplete="off"
+        >
+
+
+        <label for="studentSection">
+          Section
+        </label>
+
+        <input
+          id="studentSection"
+          type="text"
+          placeholder="Optional"
+          autocomplete="off"
+        >
+
+
+        <div class="actions">
+
+          <button
+            id="startExamBtn"
+            class="primary-btn full-btn"
+          >
+            Start Exam
+          </button>
+
+          <button
+            id="backToJoinBtn"
+            class="secondary-btn full-btn"
+          >
+            ← Back
+          </button>
+
+        </div>
+
+
+        <div
+          id="studentStatus"
+          class="status-box hidden"
+        ></div>
+
+      </div>
+
+    </section>
+
+
+    <!-- ===================================================
+         EXAM
+         =================================================== -->
+
     <section
       id="examScreen"
       class="screen hidden"
@@ -411,6 +722,10 @@
       <div class="exam-header card">
 
         <div>
+
+          <span class="eyebrow">
+            LIVE EXAM
+          </span>
 
           <h2 id="examName">
             Exam
@@ -423,46 +738,114 @@
         </div>
 
 
-        <button
-          id="exitExamBtn"
-          class="secondary-btn small-btn"
-        >
-          Exit
-        </button>
+        <div class="exam-header-actions">
+
+          <div
+            id="examTimer"
+            class="timer-badge hidden"
+          >
+            ⏱ 00:00
+          </div>
+
+          <button
+            id="exitExamBtn"
+            class="secondary-btn small-btn"
+          >
+            Exit
+          </button>
+
+        </div>
+
+      </div>
+
+
+      <!-- STUDENT BAR -->
+
+      <div
+        id="examStudentBar"
+        class="exam-student-bar card"
+      >
+
+        <div class="student-mini-avatar">
+          S
+        </div>
+
+        <div>
+
+          <strong id="examStudentName">
+            Student
+          </strong>
+
+          <span id="examStudentInfo">
+            Roll —
+          </span>
+
+        </div>
 
       </div>
 
 
       <div class="exam-workspace">
 
-        <!-- PDF -->
+
+        <!-- ===============================================
+             PDF
+             =============================================== -->
+
         <div class="card pdf-card">
 
-          <h3>
-            Question Paper
-          </h3>
+          <div class="pdf-card-header">
 
-          <iframe
-            id="examPdf"
-            title="Exam Question Paper"
-          ></iframe>
+            <div>
+
+              <h3>
+                Question Paper
+              </h3>
+
+              <p>
+                Scroll to view the question paper.
+              </p>
+
+            </div>
+
+            <span
+              id="examPdfPageInfo"
+              class="pdf-page-info"
+            >
+              0 / 0
+            </span>
+
+          </div>
+
+
+          <div
+            id="examPdfViewer"
+            class="pdf-viewer exam-pdf-viewer"
+          ></div>
 
         </div>
 
 
-        <!-- OMR -->
+        <!-- ===============================================
+             OMR
+             =============================================== -->
+
         <div class="card omr-card">
 
           <div class="omr-header">
 
             <div>
 
+              <span class="eyebrow">
+                ANSWER SHEET
+              </span>
+
               <h3>
                 OMR Answer Sheet
               </h3>
 
               <p>
-                Select the correct answer for each question.
+                Select one answer for each question.
               </p>
 
             </div>
@@ -475,6 +858,14 @@
             </span>
 
           </div>
+
+
+          <!-- QUESTION NAVIGATOR -->
+
+          <div
+            id="questionNavigator"
+            class="question-navigator"
+          ></div>
 
 
           <div
@@ -496,7 +887,7 @@
               id="resetExamBtn"
               class="secondary-btn"
             >
-              Delete Answer
+              Clear Answers
             </button>
 
           </div>
@@ -514,7 +905,92 @@
     </section>
 
 
-    <!-- LOADING -->
+    <!-- ===================================================
+         RESULTS CHECK
+         =================================================== -->
+
+    <section
+      id="resultsScreen"
+      class="screen hidden"
+    >
+
+      <div class="card">
+
+        <div class="section-header">
+
+          <div>
+
+            <span class="eyebrow">
+              RESULTS
+            </span>
+
+            <h2>
+              Check Test Results
+            </h2>
+
+            <p>
+              Enter the Test Code to view the results
+              of everyone who submitted that test.
+            </p>
+
+          </div>
+
+          <button
+            id="backHomeFromResults"
+            class="small-btn secondary-btn"
+          >
+            ← Back
+          </button>
+
+        </div>
+
+
+        <div class="result-search">
+
+          <input
+            id="resultTestCode"
+            type="text"
+            maxlength="6"
+            placeholder="Enter Test Code"
+            autocomplete="off"
+          >
+
+          <button
+            id="checkResultsBtn"
+            class="primary-btn"
+          >
+            Check Results
+          </button>
+
+        </div>
+
+
+        <div
+          id="resultsStatus"
+          class="status-box hidden"
+        ></div>
+
+
+        <div
+          id="resultsSummary"
+          class="results-summary hidden"
+        ></div>
+
+
+        <div
+          id="resultsTableWrapper"
+          class="results-table-wrapper hidden"
+        ></div>
+
+      </div>
+
+    </section>
+
+
+    <!-- ===================================================
+         LOADING
+         =================================================== -->
+
     <div
       id="loadingOverlay"
       class="loading-overlay hidden"
@@ -525,7 +1001,7 @@
         <div class="loader"></div>
 
         <p id="loadingText">
-          Waiting...
+          Please wait...
         </p>
 
       </div>
@@ -536,8 +1012,27 @@
   </main>
 
 
-  <!-- SUPABASE -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- =====================================================
+       PDF.JS
+       ===================================================== -->
+
+  <script
+    src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"
+  ></script>
+
+
+  <!-- =====================================================
+       SUPABASE
+       ===================================================== -->
+
+  <script
+    src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
+  ></script>
+
+
+  <!-- =====================================================
+       APP
+       ===================================================== -->
 
   <script src="script.js"></script>
 
