@@ -31,7 +31,23 @@ const PDFJS_WORKER =
   `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.worker.min.mjs`;
 
 const OPTION_LABELS = ["A", "B", "C", "D"];
+/* =========================================================
+   PDF.JS LOADER
+   ========================================================= */
 
+async function loadPdfJs() {
+  if (pdfModule) {
+    return pdfModule;
+  }
+
+  pdfModule = await import(PDFJS_URL);
+
+  if (pdfModule && pdfModule.GlobalWorkerOptions) {
+    pdfModule.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+  }
+
+  return pdfModule;
+}
 
 /* =========================================================
    STATE
