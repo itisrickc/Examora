@@ -3659,3 +3659,148 @@ input[type="file"] {
   }
 
 }
+
+/* =========================================================
+   QUICK ANSWER KEY / TIMER / RESULT CENTER
+   ========================================================= */
+
+.quick-key-card {
+  margin-bottom: 18px;
+  padding: 16px;
+  border: 1px solid #cde9e6;
+  border-radius: 14px;
+  background: linear-gradient(145deg, #f1fbfa, #f9fcfc);
+}
+
+.quick-key-header {
+  margin-bottom: 10px;
+}
+
+.quick-key-header strong {
+  display: block;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.quick-key-header span {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.quick-key-input {
+  width: 100%;
+  min-height: 78px;
+  resize: vertical;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  outline: none;
+  background: #fff;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.quick-key-input:focus {
+  border-color: var(--primary-light);
+  box-shadow: 0 0 0 3px rgba(20,184,166,.10);
+}
+
+.quick-key-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 9px;
+}
+
+.exam-timer {
+  flex-shrink: 0;
+  min-width: 100px;
+  padding: 8px 12px;
+  border: 1px solid #cde9e6;
+  border-radius: 12px;
+  background: #effcfb;
+  text-align: center;
+}
+
+.timer-label {
+  display: block;
+  color: var(--primary);
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: 1.2px;
+}
+
+.exam-timer strong {
+  display: block;
+  color: var(--text);
+  font-size: 20px;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+
+.exam-timer.warning {
+  border-color: #f0d58a;
+  background: #fff9e8;
+}
+
+.exam-timer.warning .timer-label,
+.exam-timer.warning strong {
+  color: #a26a00;
+}
+
+.exam-timer.danger {
+  border-color: #f2caca;
+  background: var(--danger-soft);
+  animation: timerPulse 1s ease-in-out infinite;
+}
+
+.exam-timer.danger .timer-label,
+.exam-timer.danger strong {
+  color: var(--danger);
+}
+
+@keyframes timerPulse {
+  50% { transform: scale(1.025); }
+}
+
+.result-check-card {
+  width: min(560px, 100%);
+  margin: 60px auto;
+}
+
+.result-check-icon {
+  background: var(--primary);
+}
+
+.full-btn {
+  width: 100%;
+}
+
+@media (max-width: 650px) {
+  .exam-header {
+    align-items: flex-start;
+  }
+
+  .exam-timer {
+    min-width: 88px;
+  }
+
+  .quick-key-input {
+    min-height: 90px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 430px) {
+  .exam-header {
+    flex-direction: column;
+  }
+
+  .exam-timer {
+    align-self: stretch;
+  }
+}

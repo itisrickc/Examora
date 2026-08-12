@@ -1,74 +1,36 @@
-/* =========================================================
-   EXAM OMR
-   FINAL REBUILT SCRIPT
-   Android + Desktop PDF Viewer
-   ========================================================= */
-
-
-/* =========================================================
-   SUPABASE
+﻿/* =========================================================
+   EXAM OMR — COMPLETE SCRIPT
+   Matches the current index.html
    ========================================================= */
 
 const SUPABASE_URL =
   "https://veanswqdgwffiespeokc.supabase.co";
 
-const SUPABASE_PUBLISHABLE_KEY =
+const SUPABASE_KEY =
   "sb_publishable_IuXKh35oKJiu3_a3HKurkw_YSURgtdT";
 
 const supabaseClient =
   window.supabase.createClient(
     SUPABASE_URL,
-    SUPABASE_PUBLISHABLE_KEY
+    SUPABASE_KEY
   );
 
 
 /* =========================================================
-   CONSTANTS
+   CONFIG
    ========================================================= */
 
-const STORAGE_BUCKET =
-  "question-papers";
+const STORAGE_BUCKET = "question-papers";
 
-const OPTION_LABELS = [
-  "A",
-  "B",
-  "C",
-  "D"
-];
+const PDFJS_VERSION = "4.10.38";
 
+const PDFJS_URL =
+  `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.min.mjs`;
 
-/* =========================================================
-   PDF.JS
-   ========================================================= */
+const PDFJS_WORKER =
+  `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.worker.min.mjs`;
 
-/*
-   IMPORTANT
-
-   We are intentionally using the classic PDF.js build
-   instead of the previous dynamic .mjs build.
-
-   This is much more reliable on:
-   - Android Chrome
-   - Android WebView
-   - Desktop Chrome
-   - Edge
-   - Firefox
-
-   The PDF itself is fetched as binary data first.
-   PDF.js then renders that binary data locally.
-
-   This avoids the previous direct remote-URL loading
-   problem.
-*/
-
-const PDFJS_VERSION =
-  "3.11.174";
-
-const PDFJS_MAIN_CDN =
-  `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.min.js`;
-
-const PDFJS_WORKER_CDN =
-  `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.worker.min.js`;
+const OPTION_LABELS = ["A", "B", "C", "D"];
 
 
 /* =========================================================
@@ -76,8 +38,6 @@ const PDFJS_WORKER_CDN =
    ========================================================= */
 
 let currentTest = null;
-
-let currentPdfUrl = "";
 
 let currentQuestionCount = 40;
 
@@ -87,151 +47,59 @@ let currentAnswerKey = [];
 
 let selectedAnswers = [];
 
-let candidateName = "";
-
-let testCreatedCode = "";
-
-
-/* =========================================================
-   PDF STATE
-   ========================================================= */
-
-let pdfJsLoaded = false;
+let currentPdfUrl = "";
 
 let currentPdfDocument = null;
-
-let currentPdfLoadingTask = null;
 
 let currentPdfPage = 1;
 
 let currentPdfScale = 1;
 
-let pdfRendering = false;
+let pdfModule = null;
 
-let pdfRenderQueued = false;
+let timerInterval = null;
 
-let pdfRenderToken = 0;
+let remainingSeconds = 0;
 
-let pdfTouchStartX = 0;
-
-let pdfTouchStartY = 0;
-
-let pdfResizeTimer = null;
+let examSubmitted = false;
 
 
 /* =========================================================
-   DOM HELPER
+   SHORT DOM HELPER
    ========================================================= */
 
-const $ = (id) =>
-  document.getElementById(id);
+function $(id) {
+  return document.getElementById(id);
+}
 
 
 /* =========================================================
-   BASIC UI HELPERS
+   BASIC UI
    ========================================================= */
 
 function show(element) {
-  if (!element) {
-    return;
+  if (element) {
+    element.classList.remove("hidden");
   }
-
-  element.classList.remove(
-    "hidden"
-  );
 }
-
 
 function hide(element) {
-  if (!element) {
-    return;
-  }
-
-  element.classList.add(
-    "hidden"
-  );
-}
-
-
-function setLoading(
-  visible,
-  message = "Please wait..."
-) {
-  const overlay =
-    $("loadingOverlay");
-
-  const text =
-    $("loadingText");
-
-  if (text) {
-    text.textContent =
-      message;
-  }
-
-  if (visible) {
-    show(overlay);
-  } else {
-    hide(overlay);
+  if (element) {
+    element.classList.add("hidden");
   }
 }
 
-
-function showStatus(
-  element,
-  message,
-  type = ""
-) {
-  if (!element) {
-    return;
-  }
-
-  element.textContent =
-    message;
-
-  element.className =
-    "status-box";
-
-  if (type) {
-    element.classList.add(
-      type
-    );
-  }
-
-  show(element);
-}
-
-
-function hideStatus(element) {
-  if (!element) {
-    return;
-  }
-
-  hide(element);
-}
-
-
-/* =========================================================
-   SCREEN NAVIGATION
-   ========================================================= */
-
-function showScreen(
-  screenId
-) {
+function showScreen(id) {
   document
-    .querySelectorAll(
-      ".screen"
-    )
-    .forEach(
-      (screen) => {
-        hide(screen);
-      }
-    );
+    .querySelectorAll(".screen")
+    .forEach((screen) => {
+      screen.classList.add("hidden");
+    });
 
-  const target =
-    $(screenId);
+  const screen = $(id);
 
-  if (target) {
-    show(target);
+  if (screen) {
+    screen.classList.remove("hidden");
   }
 
   window.scrollTo({
@@ -240,37 +108,51 @@ function showScreen(
   });
 }
 
+function setLoading(active, message) {
+  const overlay = $("loadingOverlay");
+  const text = $("loadingText");
 
-/* =========================================================
-   HTML ESCAPE
-   ========================================================= */
+  if (text && message) {
+    text.textContent = message;
+  }
 
-function escapeHtml(
-  value
-) {
-  return String(
-    value ?? ""
-  )
-    .replace(
-      /&/g,
-      "&amp;"
-    )
-    .replace(
-      /</g,
-      "&lt;"
-    )
-    .replace(
-      />/g,
-      "&gt;"
-    )
-    .replace(
-      /"/g,
-      "&quot;"
-    )
-    .replace(
-      /'/g,
-      "&#039;"
-    );
+  if (active) {
+    show(overlay);
+  } else {
+    hide(overlay);
+  }
+}
+
+function statusBox(element, message, type) {
+  if (!element) return;
+
+  element.textContent = message;
+
+  element.className =
+    "status-box";
+
+  if (type) {
+    element.classList.add(type);
+  }
+
+  show(element);
+}
+
+function clearStatus(element) {
+  hide(element);
+
+  if (element) {
+    element.textContent = "";
+  }
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 
@@ -278,23 +160,16 @@ function escapeHtml(
    OPTION HELPERS
    ========================================================= */
 
-function normalizeOptionCount(
-  value
-) {
+function normalizeOptionCount(value) {
   return Number(value) === 2
     ? 2
     : 4;
 }
 
-
-function getOptionLabels(
-  count
-) {
+function getOptionLabels(count) {
   return OPTION_LABELS.slice(
     0,
-    normalizeOptionCount(
-      count
-    )
+    normalizeOptionCount(count)
   );
 }
 
@@ -304,59 +179,43 @@ function getOptionLabels(
    ========================================================= */
 
 function generateTestCode() {
-  const characters =
+  const chars =
     "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
-  let code = "";
+  let result = "";
 
-  for (
-    let i = 0;
-    i < 6;
-    i++
-  ) {
-    code +=
-      characters[
+  for (let i = 0; i < 6; i++) {
+    result +=
+      chars[
         Math.floor(
           Math.random() *
-            characters.length
+          chars.length
         )
       ];
   }
 
-  return code;
+  return result;
 }
 
-
 async function generateUniqueTestCode() {
-  for (
-    let attempt = 0;
-    attempt < 15;
-    attempt++
-  ) {
+  for (let i = 0; i < 15; i++) {
     const code =
       generateTestCode();
 
     const {
       data,
       error
-    } =
-      await supabaseClient
-        .from("tests")
-        .select("id")
-        .eq(
-          "code",
-          code
-        )
-        .limit(1);
+    } = await supabaseClient
+      .from("tests")
+      .select("id")
+      .eq("code", code)
+      .limit(1);
 
     if (error) {
       throw error;
     }
 
-    if (
-      !data ||
-      data.length === 0
-    ) {
+    if (!data || data.length === 0) {
       return code;
     }
   }
@@ -368,7 +227,6 @@ async function generateUniqueTestCode() {
 
 
 /* =========================================================
-   CREATE TEST
    OPTION SETTINGS
    ========================================================= */
 
@@ -376,9 +234,7 @@ function renderOptionSettings() {
   const container =
     $("optionSettings");
 
-  if (!container) {
-    return;
-  }
+  if (!container) return;
 
   const count =
     Math.max(
@@ -386,88 +242,61 @@ function renderOptionSettings() {
       Math.min(
         300,
         Number(
-          $("questionCount")
-            ?.value
+          $("questionCount")?.value
         ) || 40
       )
     );
 
-  const defaultCount =
+  const defaultOptions =
     normalizeOptionCount(
-      $("defaultOptions")
-        ?.value
+      $("defaultOptions")?.value
     );
 
-  currentQuestionCount =
-    count;
+  container.innerHTML = "";
 
-  container.innerHTML =
-    "";
+  for (let i = 0; i < count; i++) {
+    const item =
+      document.createElement("div");
 
-  for (
-    let i = 1;
-    i <= count;
-    i++
-  ) {
-    const wrapper =
-      document.createElement(
-        "div"
-      );
-
-    wrapper.className =
+    item.className =
       "option-setting";
 
-    const number =
-      document.createElement(
-        "div"
-      );
+    item.innerHTML = `
+      <div class="option-setting-number">
+        ${i + 1}
+      </div>
 
-    number.className =
-      "option-setting-number";
+      <select
+        class="question-option-count"
+        data-question="${i}"
+      >
+        <option
+          value="4"
+          ${
+            defaultOptions === 4
+              ? "selected"
+              : ""
+          }
+        >
+          4 Options
+        </option>
 
-    number.textContent =
-      i;
-
-    const select =
-      document.createElement(
-        "select"
-      );
-
-    select.className =
-      "question-option-count";
-
-    select.dataset.question =
-      String(i);
-
-    select.innerHTML = `
-      <option value="4">
-        4 Options
-      </option>
-
-      <option value="2">
-        2 Options
-      </option>
+        <option
+          value="2"
+          ${
+            defaultOptions === 2
+              ? "selected"
+              : ""
+          }
+        >
+          2 Options
+        </option>
+      </select>
     `;
 
-    select.value =
-      String(
-        defaultCount
-      );
-
-    wrapper.appendChild(
-      number
-    );
-
-    wrapper.appendChild(
-      select
-    );
-
-    container.appendChild(
-      wrapper
-    );
+    container.appendChild(item);
   }
 }
-
 
 function collectQuestionOptions() {
   return Array.from(
@@ -484,85 +313,6 @@ function collectQuestionOptions() {
 
 
 /* =========================================================
-   CREATE SCREEN
-   PDF LOCAL PREVIEW
-   ========================================================= */
-
-$("pdfFile")
-  ?.addEventListener(
-    "change",
-    (event) => {
-      const file =
-        event.target.files?.[0];
-
-      const status =
-        $("pdfStatus");
-
-      const previewBox =
-        $("pdfPreviewBox");
-
-      const preview =
-        $("pdfPreview");
-
-      hide(
-        previewBox
-      );
-
-      if (preview) {
-        preview.src =
-          "";
-      }
-
-      if (!file) {
-        if (status) {
-          status.textContent =
-            "";
-        }
-
-        return;
-      }
-
-      if (
-        file.type !==
-        "application/pdf"
-      ) {
-        event.target.value =
-          "";
-
-        if (status) {
-          status.textContent =
-            "Please select a PDF file.";
-        }
-
-        return;
-      }
-
-      const localUrl =
-        URL.createObjectURL(
-          file
-        );
-
-      if (preview) {
-        preview.src =
-          localUrl;
-      }
-
-      show(
-        previewBox
-      );
-
-      if (status) {
-        status.textContent =
-          `${file.name} selected.`;
-
-        status.style.color =
-          "#16a34a";
-      }
-    }
-  );
-
-
-/* =========================================================
    PDF UPLOAD
    ========================================================= */
 
@@ -572,7 +322,7 @@ async function uploadQuestionPaper(
 ) {
   if (!file) {
     throw new Error(
-      "Please select a question paper PDF."
+      "Please select a PDF."
     );
   }
 
@@ -581,26 +331,19 @@ async function uploadQuestionPaper(
 
   const {
     error
-  } =
-    await supabaseClient
-      .storage
-      .from(
-        STORAGE_BUCKET
-      )
-      .upload(
-        fileName,
-        file,
-        {
-          cacheControl:
-            "3600",
-
-          upsert:
-            false,
-
-          contentType:
-            "application/pdf"
-        }
-      );
+  } = await supabaseClient
+    .storage
+    .from(STORAGE_BUCKET)
+    .upload(
+      fileName,
+      file,
+      {
+        cacheControl: "3600",
+        upsert: false,
+        contentType:
+          "application/pdf"
+      }
+    );
 
   if (error) {
     throw error;
@@ -608,19 +351,14 @@ async function uploadQuestionPaper(
 
   const {
     data
-  } =
-    supabaseClient
-      .storage
-      .from(
-        STORAGE_BUCKET
-      )
-      .getPublicUrl(
-        fileName
-      );
+  } = supabaseClient
+    .storage
+    .from(STORAGE_BUCKET)
+    .getPublicUrl(
+      fileName
+    );
 
-  if (
-    !data?.publicUrl
-  ) {
+  if (!data?.publicUrl) {
     throw new Error(
       "Could not create PDF URL."
     );
@@ -631,6 +369,68 @@ async function uploadQuestionPaper(
 
 
 /* =========================================================
+   PDF FILE INPUT
+   ========================================================= */
+
+$("pdfFile")?.addEventListener(
+  "change",
+  (event) => {
+    const file =
+      event.target.files?.[0];
+
+    const status =
+      $("pdfStatus");
+
+    const previewBox =
+      $("pdfPreviewBox");
+
+    const preview =
+      $("pdfPreview");
+
+    if (!file) {
+      hide(previewBox);
+
+      if (status) {
+        status.textContent = "";
+      }
+
+      return;
+    }
+
+    if (
+      file.type !==
+      "application/pdf"
+    ) {
+      event.target.value = "";
+
+      statusBox(
+        status,
+        "Please select a PDF file.",
+        "error"
+      );
+
+      return;
+    }
+
+    if (preview) {
+      preview.src =
+        URL.createObjectURL(file);
+    }
+
+    show(previewBox);
+
+    if (status) {
+      status.textContent =
+        `${file.name} selected.`;
+
+      status.style.color =
+        "#16a34a";
+    }
+  }
+);
+
+
+/* =========================================================
    ANSWER KEY
    ========================================================= */
 
@@ -638,12 +438,9 @@ function renderAnswerKey() {
   const container =
     $("answerKeyGrid");
 
-  if (!container) {
-    return;
-  }
+  if (!container) return;
 
-  container.innerHTML =
-    "";
+  container.innerHTML = "";
 
   currentAnswerKey =
     new Array(
@@ -652,30 +449,23 @@ function renderAnswerKey() {
 
   for (
     let i = 0;
-    i <
-    currentQuestionCount;
+    i < currentQuestionCount;
     i++
   ) {
     const item =
-      document.createElement(
-        "div"
-      );
+      document.createElement("div");
 
     item.className =
       "answer-key-item";
 
     const title =
-      document.createElement(
-        "strong"
-      );
+      document.createElement("strong");
 
     title.textContent =
       `Question ${i + 1}`;
 
     const select =
-      document.createElement(
-        "select"
-      );
+      document.createElement("select");
 
     select.className =
       "answer-key-select";
@@ -685,23 +475,19 @@ function renderAnswerKey() {
 
     const labels =
       getOptionLabels(
-        currentOptions[i]
+        currentOptions[i] || 4
       );
 
     select.innerHTML =
-      `
-        <option value="">
-          Select
-        </option>
-      ` +
+      `<option value="">
+        Select
+      </option>` +
       labels
         .map(
           (label) =>
-            `
-              <option value="${label}">
-                ${label}
-              </option>
-            `
+            `<option value="${label}">
+              ${label}
+            </option>`
         )
         .join("");
 
@@ -713,20 +499,12 @@ function renderAnswerKey() {
       }
     );
 
-    item.appendChild(
-      title
-    );
+    item.appendChild(title);
+    item.appendChild(select);
 
-    item.appendChild(
-      select
-    );
-
-    container.appendChild(
-      item
-    );
+    container.appendChild(item);
   }
 }
-
 
 function collectAnswerKey() {
   return Array.from(
@@ -741,266 +519,395 @@ function collectAnswerKey() {
 
 
 /* =========================================================
+   QUICK ANSWER KEY
+   ========================================================= */
+
+function parseQuickAnswerKey(text) {
+  const input =
+    String(text || "")
+      .trim()
+      .toUpperCase();
+
+  if (!input) {
+    return [];
+  }
+
+  const result = [];
+
+  /*
+    Supports:
+
+    A B C D A B
+    A,C,B,D
+    1-A 2-C 3-B
+    1:A 2:C 3:B
+    Q1-A Q2-C
+  */
+
+  const numbered =
+    /(?:Q)?(\d+)\s*[-:=]\s*([ABCD])/g;
+
+  let match;
+
+  while (
+    (match =
+      numbered.exec(input)) !== null
+  ) {
+    result[
+      Number(match[1]) - 1
+    ] =
+      match[2];
+  }
+
+  if (
+    result.length === 0
+  ) {
+    const letters =
+      input.match(
+        /[ABCD]/g
+      ) || [];
+
+    return letters;
+  }
+
+  return result;
+}
+
+$("applyQuickKeyBtn")?.addEventListener(
+  "click",
+  () => {
+    const status =
+      $("quickKeyStatus");
+
+    const text =
+      $("quickAnswerKey")
+        ?.value || "";
+
+    const parsed =
+      parseQuickAnswerKey(text);
+
+    if (
+      parsed.length === 0
+    ) {
+      statusBox(
+        status,
+        "Could not find any valid answers.",
+        "error"
+      );
+
+      return;
+    }
+
+    let applied = 0;
+
+    document
+      .querySelectorAll(
+        ".answer-key-select"
+      )
+      .forEach(
+        (select, index) => {
+          const answer =
+            parsed[index];
+
+          if (
+            answer &&
+            getOptionLabels(
+              currentOptions[index]
+            ).includes(answer)
+          ) {
+            select.value =
+              answer;
+
+            currentAnswerKey[index] =
+              answer;
+
+            applied++;
+          }
+        }
+      );
+
+    statusBox(
+      status,
+      `Applied ${applied} answer(s).`,
+      "success"
+    );
+  }
+);
+
+$("clearQuickKeyBtn")?.addEventListener(
+  "click",
+  () => {
+    if ($("quickAnswerKey")) {
+      $("quickAnswerKey").value = "";
+    }
+
+    clearStatus(
+      $("quickKeyStatus")
+    );
+  }
+);
+
+
+/* =========================================================
    CREATE TEST
    ========================================================= */
 
-$("generateBtn")
-  ?.addEventListener(
-    "click",
-    async () => {
-      const name =
-        $("testName")
+$("generateBtn")?.addEventListener(
+  "click",
+  async () => {
+    const name =
+      $("testName")
+        ?.value
+        ?.trim();
+
+    const pdfFile =
+      $("pdfFile")
+        ?.files?.[0];
+
+    const count =
+      Number(
+        $("questionCount")
           ?.value
-          ?.trim();
+      );
 
-      const pdfFile =
-        $("pdfFile")
-          ?.files?.[0];
+    if (!name) {
+      alert(
+        "Please enter a test name."
+      );
 
-      const count =
-        Number(
-          $("questionCount")
-            ?.value
-        );
+      return;
+    }
 
-      if (!name) {
-        alert(
-          "Please enter a test name."
-        );
+    if (!pdfFile) {
+      alert(
+        "Please select the question paper PDF."
+      );
 
-        return;
-      }
+      return;
+    }
 
-      if (!pdfFile) {
-        alert(
-          "Please select the question paper PDF."
-        );
+    if (
+      !Number.isInteger(count) ||
+      count < 1 ||
+      count > 300
+    ) {
+      alert(
+        "Question count must be between 1 and 300."
+      );
 
-        return;
-      }
+      return;
+    }
 
-      if (
-        !Number.isInteger(
-          count
-        ) ||
-        count < 1 ||
-        count > 300
-      ) {
-        alert(
-          "Question count must be between 1 and 300."
-        );
+    currentQuestionCount =
+      count;
 
-        return;
-      }
+    currentOptions =
+      collectQuestionOptions();
 
-      currentQuestionCount =
-        count;
+    if (
+      currentOptions.length !==
+      count
+    ) {
+      renderOptionSettings();
 
       currentOptions =
         collectQuestionOptions();
+    }
 
-      if (
-        currentOptions.length !==
-        count
-      ) {
-        renderOptionSettings();
+    setLoading(
+      true,
+      "Preparing your test..."
+    );
 
-        currentOptions =
-          collectQuestionOptions();
-      }
+    try {
+      const code =
+        await generateUniqueTestCode();
 
       setLoading(
         true,
-        "Preparing your test..."
+        "Uploading question paper..."
       );
 
-      try {
-        const code =
-          await generateUniqueTestCode();
-
-        setLoading(
-          true,
-          "Uploading question paper..."
+      currentPdfUrl =
+        await uploadQuestionPaper(
+          pdfFile,
+          code
         );
 
-        currentPdfUrl =
-          await uploadQuestionPaper(
-            pdfFile,
-            code
-          );
+      currentTest = {
+        name,
+        code,
+        pdf_url:
+          currentPdfUrl,
+        question_count:
+          currentQuestionCount,
+        options:
+          currentOptions,
+        duration_minutes:
+          Number(
+            $("durationMinutes")
+              ?.value
+          ) || 0
+      };
 
-        currentTest = {
-          name,
-          code,
+      renderAnswerKey();
 
-          pdf_url:
-            currentPdfUrl,
+      showScreen(
+        "answerKeyScreen"
+      );
 
-          question_count:
-            currentQuestionCount,
+    } catch (error) {
+      console.error(error);
 
-          options:
-            currentOptions
-        };
+      alert(
+        "Could not prepare the test.\n\n" +
+        error.message
+      );
 
-        renderAnswerKey();
-
-        showScreen(
-          "answerKeyScreen"
-        );
-      } catch (error) {
-        console.error(
-          error
-        );
-
-        alert(
-          "Could not prepare the test.\n\n" +
-          error.message
-        );
-      } finally {
-        setLoading(
-          false
-        );
-      }
+    } finally {
+      setLoading(false);
     }
-  );
+  }
+);
 
 
 /* =========================================================
    SAVE TEST
    ========================================================= */
 
-$("saveTestBtn")
-  ?.addEventListener(
-    "click",
-    async () => {
-      if (!currentTest) {
-        alert(
-          "No test is ready to save."
-        );
-
-        return;
-      }
-
-      const answerKey =
-        collectAnswerKey();
-
-      if (
-        answerKey.length !==
-          currentQuestionCount ||
-        answerKey.some(
-          (answer) =>
-            !answer
-        )
-      ) {
-        alert(
-          "Please select the correct answer for every question."
-        );
-
-        return;
-      }
-
-      const correctMark =
-        Number(
-          $("correctMark")
-            ?.value
-        );
-
-      const wrongMark =
-        Number(
-          $("wrongMark")
-            ?.value
-        );
-
-      if (
-        !Number.isFinite(
-          correctMark
-        ) ||
-        !Number.isFinite(
-          wrongMark
-        )
-      ) {
-        alert(
-          "Please enter valid marks."
-        );
-
-        return;
-      }
-
-      setLoading(
-        true,
-        "Saving test..."
+$("saveTestBtn")?.addEventListener(
+  "click",
+  async () => {
+    if (!currentTest) {
+      alert(
+        "No test is ready to save."
       );
 
-      try {
-        const {
-          data,
-          error
-        } =
-          await supabaseClient
-            .from("tests")
-            .insert({
-              name:
-                currentTest.name,
-
-              pdf_url:
-                currentTest.pdf_url,
-
-              question_count:
-                currentTest.question_count,
-
-              options:
-                currentTest.options,
-
-              answer_key:
-                answerKey,
-
-              correct_mark:
-                correctMark,
-
-              wrong_mark:
-                wrongMark,
-
-              code:
-                currentTest.code
-            })
-            .select()
-            .single();
-
-        if (error) {
-          throw error;
-        }
-
-        testCreatedCode =
-          data.code;
-
-        if (
-          $("createdCode")
-        ) {
-          $("createdCode")
-            .textContent =
-            testCreatedCode;
-        }
-
-        showScreen(
-          "createdScreen"
-        );
-      } catch (error) {
-        console.error(
-          error
-        );
-
-        alert(
-          "Could not save the test.\n\n" +
-          error.message
-        );
-      } finally {
-        setLoading(
-          false
-        );
-      }
+      return;
     }
-  );
+
+    const answerKey =
+      collectAnswerKey();
+
+    if (
+      answerKey.length !==
+      currentQuestionCount ||
+      answerKey.some(
+        (answer) => !answer
+      )
+    ) {
+      statusBox(
+        $("saveStatus"),
+        "Please select the correct answer for every question.",
+        "error"
+      );
+
+      return;
+    }
+
+    const correctMark =
+      Number(
+        $("correctMark")
+          ?.value
+      );
+
+    const wrongMark =
+      Number(
+        $("wrongMark")
+          ?.value
+      );
+
+    if (
+      !Number.isFinite(
+        correctMark
+      ) ||
+      !Number.isFinite(
+        wrongMark
+      )
+    ) {
+      statusBox(
+        $("saveStatus"),
+        "Please enter valid marks.",
+        "error"
+      );
+
+      return;
+    }
+
+    setLoading(
+      true,
+      "Saving test..."
+    );
+
+    try {
+      const {
+        data,
+        error
+      } = await supabaseClient
+        .from("tests")
+        .insert({
+          name:
+            currentTest.name,
+
+          pdf_url:
+            currentTest.pdf_url,
+
+          question_count:
+            currentTest.question_count,
+
+          options:
+            currentTest.options,
+
+          answer_key:
+            answerKey,
+
+          correct_mark:
+            correctMark,
+
+          wrong_mark:
+            wrongMark,
+
+          code:
+            currentTest.code,
+
+          duration_minutes:
+            currentTest.duration_minutes
+        })
+        .select()
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      currentTest =
+        data;
+
+      if ($("createdCode")) {
+        $("createdCode")
+          .textContent =
+          data.code;
+      }
+
+      showScreen(
+        "createdScreen"
+      );
+
+    } catch (error) {
+      console.error(error);
+
+      statusBox(
+        $("saveStatus"),
+        error.message ||
+          "Could not save test.",
+        "error"
+      );
+
+    } finally {
+      setLoading(false);
+    }
+  }
+);
 
 
 /* =========================================================
@@ -1011,28 +918,27 @@ async function loadTestByCode(
   code
 ) {
   const cleanCode =
-    code
+    String(code || "")
       .trim()
       .toUpperCase();
 
   if (!cleanCode) {
     throw new Error(
-      "Please enter the test code."
+      "Please enter a test code."
     );
   }
 
   const {
     data,
     error
-  } =
-    await supabaseClient
-      .from("tests")
-      .select("*")
-      .eq(
-        "code",
-        cleanCode
-      )
-      .limit(1);
+  } = await supabaseClient
+    .from("tests")
+    .select("*")
+    .eq(
+      "code",
+      cleanCode
+    )
+    .limit(1);
 
   if (error) {
     throw error;
@@ -1052,19 +958,133 @@ async function loadTestByCode(
 
 
 /* =========================================================
-   EXAM RENDER
+   JOIN TEST
+   ========================================================= */
+
+$("joinBtn")?.addEventListener(
+  "click",
+  async () => {
+    const code =
+      $("joinCode")
+        ?.value
+        ?.trim()
+        .toUpperCase();
+
+    const status =
+      $("joinStatus");
+
+    clearStatus(status);
+
+    if (!code) {
+      statusBox(
+        status,
+        "Please enter the test code.",
+        "error"
+      );
+
+      return;
+    }
+
+    setLoading(
+      true,
+      "Loading examination..."
+    );
+
+    try {
+      currentTest =
+        await loadTestByCode(
+          code
+        );
+
+      currentQuestionCount =
+        Number(
+          currentTest.question_count
+        ) || 0;
+
+      currentOptions =
+        Array.isArray(
+          currentTest.options
+        )
+          ? currentTest.options
+          : new Array(
+              currentQuestionCount
+            ).fill(4);
+
+      currentAnswerKey =
+        Array.isArray(
+          currentTest.answer_key
+        )
+          ? currentTest.answer_key
+          : [];
+
+      selectedAnswers =
+        new Array(
+          currentQuestionCount
+        ).fill("");
+
+      examSubmitted = false;
+
+      if ($("examName")) {
+        $("examName")
+          .textContent =
+          currentTest.name;
+      }
+
+      if ($("examInfo")) {
+        $("examInfo")
+          .textContent =
+          `${currentQuestionCount} Questions • Code: ${currentTest.code}`;
+      }
+
+      if ($("candidateName")) {
+        $("candidateName")
+          .value = "";
+      }
+
+      showScreen(
+        "examScreen"
+      );
+
+      renderExam();
+
+      await initializePdfViewer(
+        currentTest.pdf_url
+      );
+
+      startExamTimer(
+        Number(
+          currentTest.duration_minutes
+        ) || 0
+      );
+
+    } catch (error) {
+      console.error(error);
+
+      statusBox(
+        status,
+        error.message ||
+          "Could not load test.",
+        "error"
+      );
+
+    } finally {
+      setLoading(false);
+    }
+  }
+);
+
+
+/* =========================================================
+   EXAM / OMR
    ========================================================= */
 
 function renderExam() {
-  const container =
+  const grid =
     $("examGrid");
 
-  if (!container) {
-    return;
-  }
+  if (!grid) return;
 
-  container.innerHTML =
-    "";
+  grid.innerHTML = "";
 
   selectedAnswers =
     new Array(
@@ -1073,40 +1093,33 @@ function renderExam() {
 
   for (
     let i = 0;
-    i <
-    currentQuestionCount;
+    i < currentQuestionCount;
     i++
   ) {
     const row =
-      document.createElement(
-        "div"
-      );
+      document.createElement("div");
 
     row.className =
       "exam-question";
 
     const number =
-      document.createElement(
-        "div"
-      );
+      document.createElement("div");
 
     number.className =
       "question-number";
 
     number.textContent =
-      i + 1;
+      String(i + 1);
 
-    row.appendChild(
-      number
-    );
+    row.appendChild(number);
 
     const labels =
       getOptionLabels(
-        currentOptions[i]
+        currentOptions[i] || 4
       );
 
     labels.forEach(
-      (value) => {
+      (option) => {
         const label =
           document.createElement(
             "label"
@@ -1127,7 +1140,7 @@ function renderExam() {
           `question-${i}`;
 
         input.value =
-          value;
+          option;
 
         const text =
           document.createElement(
@@ -1135,66 +1148,60 @@ function renderExam() {
           );
 
         text.textContent =
-          value;
+          option;
 
         input.addEventListener(
           "change",
           () => {
             selectedAnswers[i] =
-              value;
+              option;
 
-            document
-              .querySelectorAll(
-                `input[name="question-${i}"]`
-              )
-              .forEach(
-                (other) => {
-                  other
-                    .closest(
-                      ".answer-option"
-                    )
-                    ?.classList.remove(
-                      "selected"
-                    );
-                }
-              );
-
-            label.classList.add(
-              "selected"
+            updateOptionVisual(
+              i
             );
 
-            updateProgress();
+            updateExamProgress();
           }
         );
 
-        label.appendChild(
-          input
-        );
+        label.appendChild(input);
+        label.appendChild(text);
 
-        label.appendChild(
-          text
-        );
-
-        row.appendChild(
-          label
-        );
+        row.appendChild(label);
       }
     );
 
-    container.appendChild(
-      row
-    );
+    grid.appendChild(row);
   }
 
-  updateProgress();
+  updateExamProgress();
 }
 
+function updateOptionVisual(
+  questionIndex
+) {
+  document
+    .querySelectorAll(
+      `input[name="question-${questionIndex}"]`
+    )
+    .forEach(
+      (input) => {
+        const label =
+          input.closest(
+            ".answer-option"
+          );
 
-/* =========================================================
-   PROGRESS
-   ========================================================= */
+        if (!label) return;
 
-function updateProgress() {
+        label.classList.toggle(
+          "selected",
+          input.checked
+        );
+      }
+    );
+}
+
+function updateExamProgress() {
   const answered =
     selectedAnswers.filter(
       Boolean
@@ -1203,13 +1210,19 @@ function updateProgress() {
   const total =
     currentQuestionCount;
 
-  const badge =
-    $("questionProgress");
-
-  if (badge) {
-    badge.textContent =
+  if ($("questionProgress")) {
+    $("questionProgress")
+      .textContent =
       `${answered} / ${total}`;
   }
+
+  const percentage =
+    total > 0
+      ? (
+          answered /
+          total
+        ) * 100
+      : 0;
 
   const fill =
     document.querySelector(
@@ -1218,2087 +1231,100 @@ function updateProgress() {
 
   if (fill) {
     fill.style.width =
-      `${
-        total
-          ? (
-              answered /
-              total
-            ) *
-            100
-          : 0
-      }%`;
+      `${percentage}%`;
   }
 }
- 
+
+
 /* =========================================================
-   PDF.JS LOADER
+   RESET ANSWERS
    ========================================================= */
 
-/*
-   Load the classic PDF.js browser build dynamically.
-
-   We are NOT using dynamic ES-module import here.
-
-   Reason:
-   The previous implementation depended on a remote
-   .mjs module and worker pair. That can fail on some
-   Android browsers / WebViews.
-
-   This version loads the normal browser build and then
-   uses PDF.js with binary PDF data.
-*/
-
-async function loadPdfJs() {
-
-  if (
-    window.pdfjsLib
-  ) {
-    pdfJsLoaded =
-      true;
-
-    window.pdfjsLib
-      .GlobalWorkerOptions
-      .workerSrc =
-      PDFJS_WORKER_CDN;
-
-    return window.pdfjsLib;
-  }
-
-
-  if (
-    pdfJsLoaded
-  ) {
+$("resetExamBtn")?.addEventListener(
+  "click",
+  () => {
     if (
-      window.pdfjsLib
+      !confirm(
+        "Delete all selected answers?"
+      )
     ) {
-      return window.pdfjsLib;
-    }
-  }
-
-
-  const existingScript =
-    document.querySelector(
-      'script[data-pdfjs="true"]'
-    );
-
-
-  if (
-    existingScript
-  ) {
-
-    await new Promise(
-      (
-        resolve,
-        reject
-      ) => {
-
-        const timeout =
-          setTimeout(
-            () => {
-              reject(
-                new Error(
-                  "PDF.js loading timed out."
-                )
-              );
-            },
-            20000
-          );
-
-
-        existingScript.addEventListener(
-          "load",
-          () => {
-            clearTimeout(
-              timeout
-            );
-
-            resolve();
-          },
-          {
-            once: true
-          }
-        );
-
-
-        existingScript.addEventListener(
-          "error",
-          () => {
-            clearTimeout(
-              timeout
-            );
-
-            reject(
-              new Error(
-                "Could not load PDF.js."
-              )
-            );
-          },
-          {
-            once: true
-          }
-        );
-
-      }
-    );
-
-  } else {
-
-    await new Promise(
-      (
-        resolve,
-        reject
-      ) => {
-
-        const script =
-          document.createElement(
-            "script"
-          );
-
-        script.src =
-          PDFJS_MAIN_CDN;
-
-        script.async =
-          true;
-
-        script.dataset.pdfjs =
-          "true";
-
-
-        script.onload =
-          () => {
-            resolve();
-          };
-
-
-        script.onerror =
-          () => {
-            reject(
-              new Error(
-                "Could not load the PDF viewer library."
-              )
-            );
-          };
-
-
-        document.head.appendChild(
-          script
-        );
-
-      }
-    );
-
-  }
-
-
-  if (
-    !window.pdfjsLib
-  ) {
-
-    throw new Error(
-      "PDF.js loaded but was not initialized."
-    );
-
-  }
-
-
-  window.pdfjsLib
-    .GlobalWorkerOptions
-    .workerSrc =
-    PDFJS_WORKER_CDN;
-
-
-  pdfJsLoaded =
-    true;
-
-
-  return window.pdfjsLib;
-}
-
-
-/* =========================================================
-   FETCH PDF AS BINARY DATA
-   ========================================================= */
-
-/*
-   IMPORTANT
-
-   The Supabase public URL is fetched first.
-
-   PDF.js receives Uint8Array data instead of the remote
-   URL itself.
-
-   This avoids PDF.js having to perform the remote request
-   internally.
-*/
-
-async function fetchPdfData(
-  url
-) {
-
-  if (!url) {
-
-    throw new Error(
-      "Question paper URL is missing."
-    );
-
-  }
-
-
-  let response;
-
-
-  try {
-
-    response =
-      await fetch(
-        url,
-        {
-          method:
-            "GET",
-
-          mode:
-            "cors",
-
-          credentials:
-            "omit",
-
-          cache:
-            "no-store",
-
-          redirect:
-            "follow"
-        }
-      );
-
-  } catch (
-    networkError
-  ) {
-
-    console.error(
-      "PDF fetch network error:",
-      networkError
-    );
-
-    throw new Error(
-      "The question paper could not be downloaded from storage."
-    );
-
-  }
-
-
-  if (
-    !response.ok
-  ) {
-
-    throw new Error(
-      `Question paper download failed (${response.status}).`
-    );
-
-  }
-
-
-  const contentType =
-    (
-      response.headers
-        .get(
-          "content-type"
-        ) || ""
-    ).toLowerCase();
-
-
-  /*
-     Some storage servers may return an empty or generic
-     content-type. Therefore we do NOT reject the file
-     only because content-type is not application/pdf.
-  */
-
-  if (
-    contentType &&
-    !contentType.includes(
-      "pdf"
-    ) &&
-    !contentType.includes(
-      "octet-stream"
-    )
-  ) {
-
-    console.warn(
-      "Unexpected PDF content type:",
-      contentType
-    );
-
-  }
-
-
-  const buffer =
-    await response.arrayBuffer();
-
-
-  if (
-    !buffer ||
-    buffer.byteLength < 100
-  ) {
-
-    throw new Error(
-      "The downloaded question paper is empty or invalid."
-    );
-
-  }
-
-
-  /*
-     PDF files normally begin with %PDF.
-     We check this so an HTML error page from storage
-     does not get passed to PDF.js.
-  */
-
-  const firstBytes =
-    new Uint8Array(
-      buffer.slice(
-        0,
-        5
-      )
-    );
-
-
-  const signature =
-    String.fromCharCode(
-      ...firstBytes
-    );
-
-
-  if (
-    signature !==
-    "%PDF-"
-  ) {
-
-    console.error(
-      "Invalid PDF signature:",
-      signature
-    );
-
-    throw new Error(
-      "The downloaded file is not a valid PDF."
-    );
-
-  }
-
-
-  return new Uint8Array(
-    buffer
-  );
-}
-
-
-/* =========================================================
-   PDF VIEWER
-   ========================================================= */
-
-function createPdfViewer() {
-
-  const pdfCard =
-    document.querySelector(
-      "#examScreen .pdf-card"
-    );
-
-
-  if (!pdfCard) {
-
-    throw new Error(
-      "PDF viewer area was not found."
-    );
-
-  }
-
-
-  /*
-     Remove any viewer created by an earlier
-     attempt.
-
-     This only removes browser UI.
-
-     It does NOT delete:
-     - questions
-     - tests
-     - results
-     - Supabase files
-  */
-
-  pdfCard
-    .querySelectorAll(
-      ".pdf-viewer"
-    )
-    .forEach(
-      (
-        viewer
-      ) => {
-        viewer.remove();
-      }
-    );
-
-
-  /*
-     Remove any old iframe if an older HTML version
-     is still cached by the browser.
-  */
-
-  pdfCard
-    .querySelectorAll(
-      "iframe"
-    )
-    .forEach(
-      (
-        iframe
-      ) => {
-        iframe.remove();
-      }
-    );
-
-
-  /*
-     Remove old runtime PDF elements.
-  */
-
-  pdfCard
-    .querySelectorAll(
-      [
-        "#pdfCanvasContainer",
-        "#pdfCanvas",
-        "#pdfLoading",
-        "#pdfPrevBtn",
-        "#pdfNextBtn",
-        "#pdfZoomInBtn",
-        "#pdfZoomOutBtn",
-        "#pdfPageInfo",
-        "#pdfZoomValue"
-      ].join(
-        ","
-      )
-    )
-    .forEach(
-      (
-        element
-      ) => {
-
-        element.remove();
-
-      }
-    );
-
-
-  const footer =
-    pdfCard.querySelector(
-      ".pdf-footer"
-    );
-
-
-  const viewer =
-    document.createElement(
-      "div"
-    );
-
-
-  viewer.className =
-    "pdf-viewer";
-
-
-  viewer.innerHTML = `
-
-    <!-- ================================================
-         PDF TOOLBAR
-         ================================================ -->
-
-    <div
-      class="pdf-toolbar"
-    >
-
-      <div
-        class="pdf-toolbar-group"
-      >
-
-        <button
-          type="button"
-          id="pdfPrevBtn"
-          class="pdf-control"
-          aria-label="Previous page"
-          title="Previous page"
-        >
-          ‹
-        </button>
-
-
-        <span
-          id="pdfPageInfo"
-          class="pdf-page-info"
-        >
-          0 / 0
-        </span>
-
-
-        <button
-          type="button"
-          id="pdfNextBtn"
-          class="pdf-control"
-          aria-label="Next page"
-          title="Next page"
-        >
-          ›
-        </button>
-
-      </div>
-
-
-      <div
-        class="pdf-toolbar-group"
-      >
-
-        <button
-          type="button"
-          id="pdfZoomOutBtn"
-          class="pdf-control"
-          aria-label="Zoom out"
-          title="Zoom out"
-        >
-          −
-        </button>
-
-
-        <span
-          id="pdfZoomValue"
-          class="pdf-zoom-value"
-        >
-          100%
-        </span>
-
-
-        <button
-          type="button"
-          id="pdfZoomInBtn"
-          class="pdf-control"
-          aria-label="Zoom in"
-          title="Zoom in"
-        >
-          +
-        </button>
-
-      </div>
-
-    </div>
-
-
-    <!-- ================================================
-         PDF CANVAS
-         ================================================ -->
-
-    <div
-      id="pdfCanvasContainer"
-      class="pdf-canvas-container"
-    >
-
-      <div
-        id="pdfLoading"
-        class="pdf-loading"
-      >
-
-        <strong>
-          Loading question paper...
-        </strong>
-
-        <span>
-          Please wait
-        </span>
-
-      </div>
-
-
-      <canvas
-        id="pdfCanvas"
-      ></canvas>
-
-    </div>
-
-
-    <!-- ================================================
-         VIEWER FOOTER
-         ================================================ -->
-
-    <div
-      class="pdf-viewer-footer"
-    >
-
-      <span>
-        Question Paper
-      </span>
-
-    </div>
-
-  `;
-
-
-  /*
-     Put our ONE viewer immediately before
-     the normal card footer.
-  */
-
-  if (
-    footer
-  ) {
-
-    pdfCard.insertBefore(
-      viewer,
-      footer
-    );
-
-  } else {
-
-    pdfCard.appendChild(
-      viewer
-    );
-
-  }
-
-
-  const container =
-    $("pdfCanvasContainer");
-
-
-  if (
-    container
-  ) {
-
-    /*
-       Android touch scrolling.
-    */
-
-    container.style.touchAction =
-      "pan-x pan-y";
-
-
-    container.style.overflow =
-      "auto";
-
-
-    container.style.webkitOverflowScrolling =
-      "touch";
-
-
-    container.setAttribute(
-      "role",
-      "region"
-    );
-
-
-    container.setAttribute(
-      "aria-label",
-      "Question paper PDF"
-    );
-
-  }
-
-
-  bindPdfControls();
-
-
-  return viewer;
-}
-
-
-/* =========================================================
-   PDF CONTROLS
-   ========================================================= */
-
-function bindPdfControls() {
-
-  $("pdfPrevBtn")
-    ?.addEventListener(
-      "click",
-      () => {
-
-        goToPdfPage(
-          currentPdfPage - 1
-        );
-
-      }
-    );
-
-
-  $("pdfNextBtn")
-    ?.addEventListener(
-      "click",
-      () => {
-
-        goToPdfPage(
-          currentPdfPage + 1
-        );
-
-      }
-    );
-
-
-  $("pdfZoomOutBtn")
-    ?.addEventListener(
-      "click",
-      () => {
-
-        setPdfZoom(
-          currentPdfScale -
-            0.1
-        );
-
-      }
-    );
-
-
-  $("pdfZoomInBtn")
-    ?.addEventListener(
-      "click",
-      () => {
-
-        setPdfZoom(
-          currentPdfScale +
-            0.1
-        );
-
-      }
-    );
-
-}
-
-
-/* =========================================================
-   PDF PAGE NAVIGATION
-   ========================================================= */
-
-function goToPdfPage(
-  pageNumber
-) {
-
-  if (
-    !currentPdfDocument
-  ) {
-    return;
-  }
-
-
-  const total =
-    currentPdfDocument.numPages;
-
-
-  const target =
-    Math.max(
-      1,
-      Math.min(
-        total,
-        Number(
-          pageNumber
-        )
-      )
-    );
-
-
-  if (
-    target ===
-    currentPdfPage
-  ) {
-
-    return;
-
-  }
-
-
-  currentPdfPage =
-    target;
-
-
-  renderPdfPage(
-    false
-  );
-
-}
-
-
-/* =========================================================
-   PDF ZOOM
-   ========================================================= */
-
-function setPdfZoom(
-  scale
-) {
-
-  currentPdfScale =
-    Math.max(
-      0.5,
-      Math.min(
-        3,
-        Math.round(
-          scale * 100
-        ) / 100
-      )
-    );
-
-
-  updatePdfZoom();
-
-
-  renderPdfPage(
-    true
-  );
-
-}
-
-
-/* =========================================================
-   PDF ZOOM LABEL
-   ========================================================= */
-
-function updatePdfZoom() {
-
-  const value =
-    $("pdfZoomValue");
-
-
-  if (
-    value
-  ) {
-
-    value.textContent =
-      `${Math.round(
-        currentPdfScale *
-          100
-      )}%`;
-
-  }
-
-}
-
-
-/* =========================================================
-   PDF BUTTON STATE
-   ========================================================= */
-
-function updatePdfButtons() {
-
-  const previous =
-    $("pdfPrevBtn");
-
-
-  const next =
-    $("pdfNextBtn");
-
-
-  if (
-    previous
-  ) {
-
-    previous.disabled =
-      !currentPdfDocument ||
-      currentPdfPage <= 1;
-
-  }
-
-
-  if (
-    next
-  ) {
-
-    next.disabled =
-      !currentPdfDocument ||
-      currentPdfPage >=
-        currentPdfDocument.numPages;
-
-  }
-
-}
-
-
-/* =========================================================
-   PDF PAGE INFO
-   ========================================================= */
-
-function updatePdfPageInfo() {
-
-  const info =
-    $("pdfPageInfo");
-
-
-  if (
-    !info
-  ) {
-    return;
-  }
-
-
-  if (
-    !currentPdfDocument
-  ) {
-
-    info.textContent =
-      "0 / 0";
-
-    return;
-
-  }
-
-
-  info.textContent =
-    `${currentPdfPage} / ${currentPdfDocument.numPages}`;
-
-}
-
-
-/* =========================================================
-   INITIAL PDF SCALE
-   ========================================================= */
-
-async function getInitialPdfScale() {
-
-  const container =
-    $("pdfCanvasContainer");
-
-
-  if (
-    !container ||
-    !currentPdfDocument
-  ) {
-
-    return 1;
-
-  }
-
-
-  const page =
-    await currentPdfDocument.getPage(
-      1
-    );
-
-
-  const viewport =
-    page.getViewport({
-      scale: 1
-    });
-
-
-  const availableWidth =
-    Math.max(
-      280,
-      container.clientWidth -
-        32
-    );
-
-
-  const fitted =
-    availableWidth /
-    viewport.width;
-
-
-  /*
-     Keep the initial page readable.
-
-     Manual zoom can then go up to 300%.
-  */
-
-  return Math.max(
-    0.5,
-    Math.min(
-      1.5,
-      fitted
-    )
-  );
-
-}
-
-
-/* =========================================================
-   PDF RENDER
-   ========================================================= */
-
-async function renderPdfPage(
-  preservePosition = false
-) {
-
-  if (
-    !currentPdfDocument
-  ) {
-
-    return;
-
-  }
-
-
-  if (
-    pdfRendering
-  ) {
-
-    pdfRenderQueued =
-      true;
-
-    return;
-
-  }
-
-
-  const canvas =
-    $("pdfCanvas");
-
-
-  const container =
-    $("pdfCanvasContainer");
-
-
-  if (
-    !canvas ||
-    !container
-  ) {
-
-    return;
-
-  }
-
-
-  pdfRendering =
-    true;
-
-
-  pdfRenderQueued =
-    false;
-
-
-  const token =
-    pdfRenderToken;
-
-
-  const oldScrollLeft =
-    container.scrollLeft;
-
-
-  const oldScrollTop =
-    container.scrollTop;
-
-
-  try {
-
-    const page =
-      await currentPdfDocument.getPage(
-        currentPdfPage
-      );
-
-
-    if (
-      token !==
-      pdfRenderToken
-    ) {
-
       return;
-
     }
-
-
-    const viewport =
-      page.getViewport({
-        scale:
-          currentPdfScale
-      });
-
-
-    /*
-       Retina / high-DPI rendering.
-
-       Maximum 2x to keep Android memory usage
-       under control.
-    */
-
-    const ratio =
-      Math.min(
-        window.devicePixelRatio ||
-          1,
-        2
-      );
-
-
-    canvas.width =
-      Math.floor(
-        viewport.width *
-          ratio
-      );
-
-
-    canvas.height =
-      Math.floor(
-        viewport.height *
-          ratio
-      );
-
-
-    /*
-       IMPORTANT:
-
-       CSS width is the REAL PDF width.
-
-       We do NOT use width: 100%.
-
-       Therefore zoom actually makes the page
-       larger and Android can scroll horizontally.
-    */
-
-    canvas.style.width =
-      `${viewport.width}px`;
-
-
-    canvas.style.height =
-      `${viewport.height}px`;
-
-
-    canvas.style.display =
-      "block";
-
-
-    const context =
-      canvas.getContext(
-        "2d",
-        {
-          alpha:
-            false
-        }
-      );
-
-
-    if (
-      !context
-    ) {
-
-      throw new Error(
-        "Could not create PDF canvas."
-      );
-
-    }
-
-
-    context.setTransform(
-      ratio,
-      0,
-      0,
-      ratio,
-      0,
-      0
-    );
-
-
-    await page
-      .render({
-        canvasContext:
-          context,
-
-        viewport
-      })
-      .promise;
-
-
-    if (
-      token !==
-      pdfRenderToken
-    ) {
-
-      return;
-
-    }
-
-
-    hide(
-      $("pdfLoading")
-    );
-
-
-    updatePdfPageInfo();
-
-    updatePdfButtons();
-
-    updatePdfZoom();
-
-
-    /*
-       Restore position after zoom.
-
-       This keeps Android users near the same
-       location after pressing + or −.
-    */
-
-    if (
-      preservePosition
-    ) {
-
-      container.scrollLeft =
-        oldScrollLeft;
-
-      container.scrollTop =
-        oldScrollTop;
-
-    } else {
-
-      /*
-         New page starts from top-left.
-      */
-
-      container.scrollLeft =
-        0;
-
-      container.scrollTop =
-        0;
-
-    }
-
-  } catch (
-    error
-  ) {
-
-    console.error(
-      "PDF render error:",
-      error
-    );
-
-
-    const loading =
-      $("pdfLoading");
-
-
-    if (
-      loading
-    ) {
-
-      loading.innerHTML = `
-
-        <strong>
-          Could not display this page.
-        </strong>
-
-        <span>
-          Please try again.
-        </span>
-
-        <button
-          type="button"
-          id="pdfRetryBtn"
-          class="secondary-btn small-btn"
-        >
-          Retry
-        </button>
-
-      `;
-
-
-      show(
-        loading
-      );
-
-
-      $("pdfRetryBtn")
-        ?.addEventListener(
-          "click",
-          () => {
-
-            loading.innerHTML = `
-              <strong>
-                Loading page...
-              </strong>
-
-              <span>
-                Please wait
-              </span>
-            `;
-
-            renderPdfPage(
-              false
-            );
-
-          },
-          {
-            once:
-              true
-          }
-        );
-
-    }
-
-  } finally {
-
-    pdfRendering =
-      false;
-
-
-    if (
-      pdfRenderQueued
-    ) {
-
-      pdfRenderQueued =
-        false;
-
-
-      requestAnimationFrame(
-        () => {
-
-          renderPdfPage(
-            true
-          );
-
-        }
-      );
-
-    }
-
-  }
-
-}
-
-
-/* =========================================================
-   PDF INITIALIZATION
-   ========================================================= */
-
-async function initializePdfViewer(
-  url
-) {
-
-  if (!url) {
-
-    throw new Error(
-      "Question paper URL is missing."
-    );
-
-  }
-
-
-  /*
-     Cancel/invalidate every previous render.
-  */
-
-  pdfRenderToken++;
-
-
-  const token =
-    pdfRenderToken;
-
-
-  /*
-     Destroy only the browser's previous PDF.js
-     document.
-
-     NOTHING is deleted from Supabase.
-  */
-
-  if (
-    currentPdfDocument
-  ) {
-
-    try {
-
-      await currentPdfDocument.destroy();
-
-    } catch (
-      destroyError
-    ) {
-
-      console.warn(
-        "Previous PDF cleanup:",
-        destroyError
-      );
-
-    }
-
-  }
-
-
-  currentPdfDocument =
-    null;
-
-
-  currentPdfLoadingTask =
-    null;
-
-
-  currentPdfPage =
-    1;
-
-
-  currentPdfScale =
-    1;
-
-
-  currentPdfUrl =
-    url;
-
-
-  /*
-     Create exactly ONE viewer.
-  */
-
-  createPdfViewer();
-
-
-  const loading =
-    $("pdfLoading");
-
-
-  if (
-    loading
-  ) {
-
-    loading.innerHTML = `
-
-      <strong>
-        Loading question paper...
-      </strong>
-
-      <span>
-        Downloading PDF
-      </span>
-
-    `;
-
-
-    show(
-      loading
-    );
-
-  }
-
-
-  updatePdfPageInfo();
-
-  updatePdfButtons();
-
-
-  try {
-
-    /*
-       Load PDF.js.
-    */
-
-    const pdfjsLib =
-      await loadPdfJs();
-
-
-    if (
-      token !==
-      pdfRenderToken
-    ) {
-
-      return;
-
-    }
-
-
-    /*
-       -----------------------------------------------------
-       CRITICAL FIX
-       -----------------------------------------------------
-
-       Download the actual PDF first.
-
-       PDF.js receives binary data instead of the URL.
-
-       This is the main change from the previous version.
-       -----------------------------------------------------
-    */
-
-    const pdfData =
-      await fetchPdfData(
-        url
-      );
-
-
-    if (
-      token !==
-      pdfRenderToken
-    ) {
-
-      return;
-
-    }
-
-
-    /*
-       Load the PDF from binary data.
-    */
-
-    const loadingTask =
-      pdfjsLib.getDocument({
-
-        data:
-          pdfData,
-
-        disableAutoFetch:
-          false,
-
-        disableStream:
-          false,
-
-        isEvalSupported:
-          true
-
-      });
-
-
-    currentPdfLoadingTask =
-      loadingTask;
-
-
-    const document =
-      await loadingTask.promise;
-
-
-    if (
-      token !==
-      pdfRenderToken
-    ) {
-
-      try {
-
-        await document.destroy();
-
-      } catch {}
-
-      return;
-
-    }
-
-
-    currentPdfDocument =
-      document;
-
-
-    updatePdfPageInfo();
-
-    updatePdfButtons();
-
-
-    /*
-       Wait until the viewer has its actual width.
-    */
-
-    await new Promise(
-      (
-        resolve
-      ) => {
-
-        requestAnimationFrame(
-          () => {
-
-            resolve();
-
-          }
-        );
-
-      }
-    );
-
-
-    currentPdfScale =
-      await getInitialPdfScale();
-
-
-    updatePdfZoom();
-
-
-    await renderPdfPage(
-      false
-    );
-
-  } catch (
-    error
-  ) {
-
-    console.error(
-      "PDF loading error:",
-      error
-    );
-
-
-    const loading =
-      $("pdfLoading");
-
-
-    if (
-      loading
-    ) {
-
-      loading.innerHTML = `
-
-        <strong>
-          Unable to load the question paper.
-        </strong>
-
-        <span>
-          ${escapeHtml(
-            error.message ||
-              "PDF loading failed."
-          )}
-        </span>
-
-        <button
-          type="button"
-          id="pdfReloadBtn"
-          class="secondary-btn small-btn"
-        >
-          Try Again
-        </button>
-
-      `;
-
-
-      show(
-        loading
-      );
-
-
-      $("pdfReloadBtn")
-        ?.addEventListener(
-          "click",
-          () => {
-
-            initializePdfViewer(
-              currentPdfUrl
-            );
-
-          },
-          {
-            once:
-              true
-          }
-        );
-
-    }
-
-
-    /*
-       Do NOT break the entire exam if the PDF viewer
-       fails.
-
-       The OMR section must remain usable.
-    */
-
-    console.error(
-      "Question paper viewer failed:",
-      error
-    );
-
-  }
-
-}
-
-
-/* =========================================================
-   OPEN PDF LINK
-   ========================================================= */
-
-function updateExternalPdfLink(
-  url
-) {
-
-  const link =
-    $("pdfExternalLink");
-
-
-  if (
-    !link
-  ) {
-
-    return;
-
-  }
-
-
-  link.href =
-    url || "#";
-
-
-  if (
-    !url
-  ) {
-
-    link.style.pointerEvents =
-      "none";
-
-  } else {
-
-    link.style.pointerEvents =
-      "";
-
-  }
-
-}
-
-
-/* =========================================================
-   JOIN TEST
-   ========================================================= */
-
-async function joinTest() {
-
-  const code =
-    $("joinCode")
-      ?.value
-      ?.trim()
-      .toUpperCase();
-
-
-  const status =
-    $("joinStatus");
-
-
-  hideStatus(
-    status
-  );
-
-
-  if (!code) {
-
-    showStatus(
-      status,
-      "Please enter the test code.",
-      "error"
-    );
-
-    return;
-
-  }
-
-
-  if (
-    code.length !==
-    6
-  ) {
-
-    showStatus(
-      status,
-      "Test code must contain 6 characters.",
-      "error"
-    );
-
-    return;
-
-  }
-
-
-  setLoading(
-    true,
-    "Loading test..."
-  );
-
-
-  try {
-
-    const test =
-      await loadTestByCode(
-        code
-      );
-
-
-    currentTest =
-      test;
-
-
-    currentQuestionCount =
-      Number(
-        test.question_count
-      );
-
-
-    currentOptions =
-      Array.isArray(
-        test.options
-      )
-        ? test.options.map(
-            normalizeOptionCount
-          )
-        : new Array(
-            currentQuestionCount
-          ).fill(4);
-
-
-    currentAnswerKey =
-      Array.isArray(
-        test.answer_key
-      )
-        ? test.answer_key
-        : [];
-
 
     selectedAnswers =
       new Array(
         currentQuestionCount
       ).fill("");
 
-
-    candidateName =
-      "";
-
-
-    currentPdfUrl =
-      test.pdf_url;
-
-
-    if (
-      $("examName")
-    ) {
-
-      $("examName")
-        .textContent =
-        test.name;
-
-    }
-
-
-    if (
-      $("examInfo")
-    ) {
-
-      $("examInfo")
-        .textContent =
-        `${currentQuestionCount} Questions • Code: ${test.code}`;
-
-    }
-
-
-    /*
-       External fallback link.
-    */
-
-    updateExternalPdfLink(
-      currentPdfUrl
-    );
-
-
-    /*
-       IMPORTANT:
-
-       Show exam BEFORE initializing PDF.
-
-       The viewer needs its actual width.
-    */
-
-    showScreen(
-      "examScreen"
-    );
-
-
-    const nameInput =
-      $("candidateName");
-
-
-    if (
-      nameInput
-    ) {
-
-      nameInput.value =
-        "";
-
-    }
-
-
-    renderExam();
-
-
-    /*
-       Give Android one or two frames to finish
-       calculating the visible layout.
-    */
-
-    await new Promise(
-      (
-        resolve
-      ) => {
-
-        requestAnimationFrame(
-          () => {
-
-            requestAnimationFrame(
-              resolve
-            );
-
-          }
-        );
-
-      }
-    );
-
-
-    /*
-       Now load the PDF.
-    */
-
-    await initializePdfViewer(
-      currentPdfUrl
-    );
-
-  } catch (
-    error
-  ) {
-
-    console.error(
-      "Join test error:",
-      error
-    );
-
-
-    showStatus(
-      status,
-      error.message ||
-        "Could not load the test.",
-      "error"
-    );
-
-  } finally {
-
-    setLoading(
-      false
-    );
-
-  }
-
-}
-/* =========================================================
-   RESET EXAM
-   ========================================================= */
-
-$("resetExamBtn")
-  ?.addEventListener(
-    "click",
-    () => {
-
-      if (
-        !confirm(
-          "Delete all selected answers?"
-        )
-      ) {
-
-        return;
-
-      }
-
-
-      selectedAnswers =
-        new Array(
-          currentQuestionCount
-        ).fill("");
-
-
-      document
-        .querySelectorAll(
-          ".answer-option input"
-        )
-        .forEach(
-          (
-            input
-          ) => {
-
-            input.checked =
-              false;
-
-
-            input
-              .closest(
-                ".answer-option"
-              )
-              ?.classList.remove(
-                "selected"
-              );
-
-          }
-        );
-
-
-      hide(
-        $("resultBox")
+    document
+      .querySelectorAll(
+        ".answer-option input"
+      )
+      .forEach(
+        (input) => {
+          input.checked =
+            false;
+        }
       );
 
+    document
+      .querySelectorAll(
+        ".answer-option.selected"
+      )
+      .forEach(
+        (label) => {
+          label.classList.remove(
+            "selected"
+          );
+        }
+      );
 
-      updateProgress();
-
-    }
-  );
+    updateExamProgress();
+  }
+);
 
 
 /* =========================================================
-   CALCULATE RESULT
+   RESULT CALCULATION
    ========================================================= */
 
 function calculateResult() {
-
-  const answerKey =
-    Array.isArray(
-      currentTest?.answer_key
-    )
-      ? currentTest.answer_key
-      : [];
-
-
   const correctMark =
     Number(
-      currentTest?.correct_mark
+      currentTest.correct_mark
     ) || 0;
-
 
   const wrongMark =
     Number(
-      currentTest?.wrong_mark
+      currentTest.wrong_mark
     ) || 0;
 
-
-  let correct =
-    0;
-
-
-  let wrong =
-    0;
-
-
-  let unanswered =
-    0;
-
+  let correct = 0;
+  let wrong = 0;
+  let unanswered = 0;
 
   for (
     let i = 0;
-    i <
-    currentQuestionCount;
+    i < currentQuestionCount;
     i++
   ) {
-
     const selected =
       selectedAnswers[i];
 
-
-    if (
-      !selected
-    ) {
-
+    if (!selected) {
       unanswered++;
-
       continue;
-
     }
-
 
     if (
       selected ===
-      answerKey[i]
+      currentAnswerKey[i]
     ) {
-
       correct++;
-
     } else {
-
       wrong++;
-
     }
-
   }
-
-
-  /*
-     Negative marking.
-
-     wrongMark may already be negative, therefore
-     Math.abs() is used here.
-  */
 
   const score =
     (
@@ -3312,280 +1338,203 @@ function calculateResult() {
       )
     );
 
-
   const totalMarks =
     currentQuestionCount *
     correctMark;
-
 
   const percentage =
     totalMarks > 0
       ? (
           score /
           totalMarks
-        ) *
-        100
+        ) * 100
       : 0;
 
-
   return {
+  candidateName:
+    $("candidateName")
+      ?.value
+      ?.trim() || "",
 
-    candidateName,
+  testCode:
+    currentTest.code,
 
-    testCode:
-      currentTest.code,
+  testName:
+    currentTest.name,
 
-    testName:
-      currentTest.name,
-
-    correct,
-
-    wrong,
-
-    unanswered,
-
-    score,
-
-    totalMarks,
-
-    percentage
-
-  };
-
+  correct,
+  wrong,
+  unanswered,
+  score,
+  totalMarks,
+  percentage
+};
 }
 
 
 /* =========================================================
-   SAVE EXAM RESULT
+   SAVE RESULT
    ========================================================= */
 
-async function saveExamResult(
-  result
-) {
+async function saveExamResult(result) {
+  if (!result) {
+    throw new Error("Result data is missing.");
+  }
+
+  /*
+    IMPORTANT:
+    The current exam_results table does NOT have
+    an "answers" column.
+
+    So we only save the columns that exist:
+      test_code
+      test_name
+      candidate_name
+      correct
+      wrong
+      unanswered
+      score
+      total_marks
+      percentage
+  */
+
+  const payload = {
+    test_code:
+      result.testCode || "",
+
+    test_name:
+      result.testName ||
+      currentTest?.name ||
+      "Online Examination",
+
+    candidate_name:
+      result.candidateName ||
+      "Candidate",
+
+    correct:
+      Number(result.correct) || 0,
+
+    wrong:
+      Number(result.wrong) || 0,
+
+    unanswered:
+      Number(result.unanswered) || 0,
+
+    score:
+      Number(result.score) || 0,
+
+    total_marks:
+      Number(result.totalMarks) || 0,
+
+    percentage:
+      Number(result.percentage) || 0
+  };
+
+  console.log(
+    "Saving exam result:",
+    payload
+  );
 
   const {
     error
-  } =
-    await supabaseClient
-      .from(
-        "exam_results"
-      )
-      .insert({
+  } = await supabaseClient
+    .from("exam_results")
+    .insert(payload);
 
-        test_code:
-          result.testCode,
-
-        test_name:
-          result.testName,
-
-        candidate_name:
-          result.candidateName,
-
-        correct:
-          result.correct,
-
-        wrong:
-          result.wrong,
-
-        unanswered:
-          result.unanswered,
-
-        score:
-          result.score,
-
-        total_marks:
-          result.totalMarks,
-
-        percentage:
-          result.percentage
-
-      });
-
-
-  if (
-    error
-  ) {
-
-    throw error;
-
-  }
-
-}
-
-
-/* =========================================================
-   FORMAT NUMBER
-   ========================================================= */
-
-function formatNumber(
-  number
-) {
-
-  return Number(
-    number
-  )
-    .toFixed(2)
-    .replace(
-      /\.00$/,
-      ""
+  if (error) {
+    console.error(
+      "Exam result save error:",
+      error
     );
 
+    throw error;
+  }
+
+  console.log(
+    "Exam result saved successfully."
+  );
+
+  return true;
 }
 
-
 /* =========================================================
-   RESULT UI
+   SHOW RESULT AFTER SUBMIT
    ========================================================= */
 
-function renderResult(
+function renderSubmittedResult(
   result
 ) {
-
   const box =
     $("resultBox");
 
-
-  if (
-    !box
-  ) {
-
-    return;
-
-  }
-
-
-  const percentage =
-    Number(
-      result.percentage
-    ) || 0;
-
+  if (!box) return;
 
   box.innerHTML = `
-
-    <div
-      class="result-title"
-    >
+    <div class="result-title">
       Result
     </div>
 
-
     <p>
-      ${escapeHtml(
-        result.candidateName ||
-          "Candidate"
-      )}
-      •
-      ${escapeHtml(
-        result.testName ||
-          ""
-      )}
+      <strong>
+        ${escapeHtml(
+          result.candidateName
+        )}
+      </strong>
     </p>
 
+    <div class="result-stats">
 
-    <div
-      class="result-stats"
-    >
-
-      <div
-        class="result-stat"
-      >
-
-        <span>
-          Correct
-        </span>
-
+      <div class="result-stat">
+        <span>Correct</span>
         <strong>
           ${result.correct}
         </strong>
-
       </div>
 
-
-      <div
-        class="result-stat"
-      >
-
-        <span>
-          Wrong
-        </span>
-
+      <div class="result-stat">
+        <span>Wrong</span>
         <strong>
           ${result.wrong}
         </strong>
-
       </div>
 
-
-      <div
-        class="result-stat"
-      >
-
-        <span>
-          Unanswered
-        </span>
-
+      <div class="result-stat">
+        <span>Unanswered</span>
         <strong>
           ${result.unanswered}
         </strong>
-
       </div>
 
-
-      <div
-        class="result-stat"
-      >
-
-        <span>
-          Percentage
-        </span>
-
+      <div class="result-stat">
+        <span>Percentage</span>
         <strong>
-          ${percentage.toFixed(
-            2
-          )}%
+          ${result.percentage.toFixed(2)}%
         </strong>
-
       </div>
 
     </div>
 
-
-    <div
-      class="score-display"
-    >
+    <div class="score-display">
 
       <span>
         Score
       </span>
 
       <strong>
-        ${formatNumber(
-          result.score
-        )}
+        ${result.score}
         /
-        ${formatNumber(
-          result.totalMarks
-        )}
+        ${result.totalMarks}
       </strong>
 
     </div>
-
   `;
 
-
-  show(
-    box
-  );
-
+  show(box);
 
   box.scrollIntoView({
-    behavior:
-      "smooth",
-
-    block:
-      "nearest"
+    behavior: "smooth",
+    block: "nearest"
   });
-
 }
 
 
@@ -3593,498 +1542,135 @@ function renderResult(
    SUBMIT EXAM
    ========================================================= */
 
-$("submitExamBtn")
-  ?.addEventListener(
-    "click",
-    async () => {
+$("submitExamBtn")?.addEventListener(
+  "click",
+  async () => {
+    if (!currentTest) {
+      return;
+    }
 
-      if (
-        !currentTest
-      ) {
+    if (examSubmitted) {
+      return;
+    }
 
-        return;
+    const name =
+      $("candidateName")
+        ?.value
+        ?.trim();
 
-      }
+    if (!name) {
+      alert(
+        "Please enter your name before submitting."
+      );
 
+      $("candidateName")
+        ?.focus();
 
-      const input =
-        $("candidateName");
+      return;
+    }
 
+    const unanswered =
+      selectedAnswers.filter(
+        (answer) => !answer
+      ).length;
 
-      candidateName =
-        input?.value
-          ?.trim() ||
-        "";
-
-
-      if (
-        !candidateName
-      ) {
-
-        alert(
-          "Please enter your name before submitting the exam."
-        );
-
-
-        input?.focus();
-
-
-        return;
-
-      }
-
-
-      const unanswered =
-        selectedAnswers.filter(
-          (
-            answer
-          ) =>
-            !answer
-        ).length;
-
-
-      if (
-        unanswered > 0 &&
-        !confirm(
+    if (unanswered > 0) {
+      const confirmSubmit =
+        confirm(
           `${unanswered} question(s) are unanswered.\n\nSubmit anyway?`
-        )
-      ) {
+        );
 
+      if (!confirmSubmit) {
         return;
-
       }
-
-
-      setLoading(
-        true,
-        "Checking your answers..."
-      );
-
-
-      try {
-
-        /*
-           Calculate locally first.
-
-           Therefore the result can still be shown
-           even if Supabase temporarily fails.
-        */
-
-        const result =
-          calculateResult();
-
-
-        /*
-           Try to save the result.
-
-           A database failure should NOT erase the
-           candidate's result from the screen.
-        */
-
-        try {
-
-          await saveExamResult(
-            result
-          );
-
-        } catch (
-          saveError
-        ) {
-
-          console.warn(
-            "Result save failed:",
-            saveError
-          );
-
-        }
-
-
-        renderResult(
-          result
-        );
-
-      } finally {
-
-        setLoading(
-          false
-        );
-
-      }
-
     }
-  );
-
-
-/* =========================================================
-   CHECK SINGLE RESULT
-   ========================================================= */
-
-async function checkSingleResult() {
-
-  const code =
-    $("resultCode")
-      ?.value
-      ?.trim()
-      .toUpperCase();
-
-
-  const status =
-    $("resultStatus");
-
-
-  const box =
-    $("singleResultBox");
-
-
-  hideStatus(
-    status
-  );
-
-
-  hide(
-    box
-  );
-
-
-  if (
-    !code
-  ) {
-
-    showStatus(
-      status,
-      "Please enter the test code.",
-      "error"
-    );
-
-    return;
-
-  }
-
-
-  setLoading(
-    true,
-    "Loading result..."
-  );
-
-
-  try {
-
-    const {
-      data,
-      error
-    } =
-      await supabaseClient
-        .from(
-          "exam_results"
-        )
-        .select("*")
-        .eq(
-          "test_code",
-          code
-        )
-        .order(
-          "created_at",
-          {
-            ascending:
-              false
-          }
-        )
-        .limit(1);
-
-
-    if (
-      error
-    ) {
-
-      throw error;
-
-    }
-
-
-    if (
-      !data ||
-      data.length === 0
-    ) {
-
-      throw new Error(
-        "No result found for this test code."
-      );
-
-    }
-
-
-    const result =
-      data[0];
-
-
-    const percentage =
-      Number(
-        result.percentage
-      ) || 0;
-
-
-    box.innerHTML = `
-
-      <div
-        class="result-title"
-      >
-        Result
-      </div>
-
-
-      <p>
-        ${escapeHtml(
-          result.candidate_name ||
-            "Candidate"
-        )}
-      </p>
-
-
-      <div
-        class="result-stats"
-      >
-
-        <div
-          class="result-stat"
-        >
-
-          <span>
-            Correct
-          </span>
-
-          <strong>
-            ${result.correct ?? 0}
-          </strong>
-
-        </div>
-
-
-        <div
-          class="result-stat"
-        >
-
-          <span>
-            Wrong
-          </span>
-
-          <strong>
-            ${result.wrong ?? 0}
-          </strong>
-
-        </div>
-
-
-        <div
-          class="result-stat"
-        >
-
-          <span>
-            Unanswered
-          </span>
-
-          <strong>
-            ${result.unanswered ?? 0}
-          </strong>
-
-        </div>
-
-
-        <div
-          class="result-stat"
-        >
-
-          <span>
-            Percentage
-          </span>
-
-          <strong>
-            ${percentage.toFixed(
-              2
-            )}%
-          </strong>
-
-        </div>
-
-      </div>
-
-
-      <div
-        class="score-display"
-      >
-
-        <span>
-          Score
-        </span>
-
-        <strong>
-          ${formatNumber(
-            result.score ||
-              0
-          )}
-          /
-          ${formatNumber(
-            result.total_marks ||
-              0
-          )}
-        </strong>
-
-      </div>
-
-    `;
-
-
-    show(
-      box
-    );
-
-  } catch (
-    error
-  ) {
-
-    console.error(
-      "Single result error:",
-      error
-    );
-
-
-    showStatus(
-      status,
-      error.message ||
-        "Could not load result.",
-      "error"
-    );
-
-  } finally {
 
     setLoading(
-      false
+      true,
+      "Submitting examination..."
     );
 
-  }
+    try {
+      const result =
+        calculateResult();
 
-}
-
-
-/* =========================================================
-   CHECK ALL RESULTS
-   ========================================================= */
-
-async function checkAllResults() {
-
-  const code =
-    $("resultsCode")
-      ?.value
-      ?.trim()
-      .toUpperCase();
-
-
-  const status =
-    $("resultsStatus");
-
-
-  const summary =
-    $("resultsSummary");
-
-
-  const table =
-    $("resultsTableContainer");
-
-
-  hideStatus(
-    status
-  );
-
-
-  hide(
-    summary
-  );
-
-
-  hide(
-    table
-  );
-
-
-  if (
-    !code
-  ) {
-
-    showStatus(
-      status,
-      "Please enter the test code.",
-      "error"
-    );
-
-    return;
-
-  }
-
-
-  setLoading(
-    true,
-    "Loading all results..."
-  );
-
-
-  try {
-
-    /*
-       First get test information.
-    */
-
-    const {
-      data:
-        testData,
-      error:
-        testError
-    } =
-      await supabaseClient
-        .from(
-          "tests"
-        )
-        .select(
-          "name,question_count,correct_mark"
-        )
-        .eq(
-          "code",
-          code
-        )
-        .limit(1);
-
-
-    if (
-      testError
-    ) {
-
-      throw testError;
-
-    }
-
-
-    if (
-      !testData ||
-      testData.length === 0
-    ) {
-
-      throw new Error(
-        "Test not found."
+      await saveExamResult(
+        result
       );
 
+      examSubmitted = true;
+
+      stopExamTimer();
+
+      renderSubmittedResult(
+        result
+      );
+
+      alert(
+        "Exam submitted successfully."
+      );
+
+    } catch (error) {
+      console.error(error);
+
+      alert(
+        "Could not submit the exam.\n\n" +
+        error.message
+      );
+
+    } finally {
+      setLoading(false);
+    }
+  }
+);
+
+/* =========================================================
+   RESULT CHECK — ALL STUDENTS
+   ========================================================= */
+
+$("checkResultBtn")?.addEventListener(
+  "click",
+  async () => {
+    const code =
+      $("resultCode")
+        ?.value
+        ?.trim()
+        .toUpperCase();
+
+    const status =
+      $("resultStatus");
+
+    const box =
+      $("singleResultBox");
+
+    clearStatus(status);
+    hide(box);
+
+    if (!code) {
+      statusBox(
+        status,
+        "Please enter the test code.",
+        "error"
+      );
+
+      return;
     }
 
+    setLoading(
+      true,
+      "Loading all student results..."
+    );
 
-    /*
-       Get every submitted result.
-    */
+    try {
+      /* -----------------------------------------
+         FETCH ALL RESULTS FOR THIS TEST
+         ----------------------------------------- */
 
-    const {
-      data,
-      error
-    } =
-      await supabaseClient
-        .from(
-          "exam_results"
-        )
+      const {
+        data,
+        error
+      } = await supabaseClient
+        .from("exam_results")
         .select("*")
         .eq(
           "test_code",
@@ -4093,1663 +1679,1107 @@ async function checkAllResults() {
         .order(
           "score",
           {
-            ascending:
-              false
+            ascending: false
           }
         );
 
+      if (error) {
+        throw error;
+      }
 
-    if (
-      error
-    ) {
+      if (
+        !data ||
+        data.length === 0
+      ) {
+        throw new Error(
+          "No submitted result found for this test code."
+        );
+      }
 
-      throw error;
+      /* -----------------------------------------
+         SORT RESULTS
+         Highest score first.
+         If scores are equal, percentage decides.
+         ----------------------------------------- */
 
-    }
+      const results =
+        [...data].sort(
+          (a, b) => {
+            const scoreA =
+              Number(a.score) || 0;
 
+            const scoreB =
+              Number(b.score) || 0;
 
-    if (
-      !data ||
-      data.length === 0
-    ) {
+            if (
+              scoreB !== scoreA
+            ) {
+              return scoreB - scoreA;
+            }
 
-      throw new Error(
-        "No results found for this test yet."
-      );
+            const percentageA =
+              Number(a.percentage) || 0;
 
-    }
+            const percentageB =
+              Number(b.percentage) || 0;
 
+            return (
+              percentageB -
+              percentageA
+            );
+          }
+        );
 
-    const test =
-      testData[0];
+      /* -----------------------------------------
+         BUILD RESULT TABLE
+         ----------------------------------------- */
 
+      let tableRows = "";
 
-    const scores =
-      data.map(
-        (
-          item
-        ) =>
-          Number(
-            item.score
-          ) || 0
-      );
+      results.forEach(
+        (result, index) => {
+          const rank =
+            index + 1;
 
+          const candidate =
+            escapeHtml(
+              result.candidate_name ||
+              "Candidate"
+            );
 
-    const highest =
-      Math.max(
-        ...scores
-      );
+          const correct =
+            Number(
+              result.correct
+            ) || 0;
 
+          const wrong =
+            Number(
+              result.wrong
+            ) || 0;
 
-    const average =
-      scores.reduce(
-        (
-          total,
-          value
-        ) =>
-          total +
-          value,
-        0
-      ) /
-      scores.length;
+          const unanswered =
+            Number(
+              result.unanswered
+            ) || 0;
 
+          const score =
+            Number(
+              result.score
+            ) || 0;
 
-    /*
-       SUMMARY
-    */
+          const totalMarks =
+            Number(
+              result.total_marks
+            ) || 0;
 
-    if (
-      summary
-    ) {
+          const percentage =
+            Number(
+              result.percentage
+            ) || 0;
 
-      summary.innerHTML = `
-
-        <div
-          class="result-stat"
-        >
-
-          <span>
-            Test
-          </span>
-
-          <strong>
-            ${escapeHtml(
-              test.name ||
-                code
-            )}
-          </strong>
-
-        </div>
-
-
-        <div
-          class="result-stat"
-        >
-
-          <span>
-            Candidates
-          </span>
-
-          <strong>
-            ${data.length}
-          </strong>
-
-        </div>
-
-
-        <div
-          class="result-stat"
-        >
-
-          <span>
-            Highest
-          </span>
-
-          <strong>
-            ${formatNumber(
-              highest
-            )}
-          </strong>
-
-        </div>
-
-
-        <div
-          class="result-stat"
-        >
-
-          <span>
-            Average
-          </span>
-
-          <strong>
-            ${formatNumber(
-              average
-            )}
-          </strong>
-
-        </div>
-
-      `;
-
-
-      show(
-        summary
-      );
-
-    }
-
-
-    /*
-       RESULTS TABLE
-    */
-
-    if (
-      table
-    ) {
-
-      let rows =
-        "";
-
-
-      data.forEach(
-        (
-          item,
-          index
-        ) => {
-
-          rows += `
-
+          tableRows += `
             <tr>
-
-              <td>
-                ${index + 1}
+              <td
+                style="
+                  text-align:center;
+                  font-weight:700;
+                  white-space:nowrap;
+                "
+              >
+                ${rank}
               </td>
 
-              <td>
-                ${escapeHtml(
-                  item.candidate_name ||
-                    "Candidate"
-                )}
+              <td
+                style="
+                  font-weight:600;
+                  min-width:160px;
+                "
+              >
+                ${candidate}
               </td>
 
-              <td>
-                ${item.correct ?? 0}
+              <td
+                style="
+                  text-align:center;
+                  color:#15803d;
+                  font-weight:700;
+                "
+              >
+                ${correct}
               </td>
 
-              <td>
-                ${item.wrong ?? 0}
+              <td
+                style="
+                  text-align:center;
+                  color:#dc2626;
+                  font-weight:700;
+                "
+              >
+                ${wrong}
               </td>
 
-              <td>
-                ${item.unanswered ?? 0}
+              <td
+                style="
+                  text-align:center;
+                  color:#64748b;
+                  font-weight:700;
+                "
+              >
+                ${unanswered}
               </td>
 
-              <td>
-                ${formatNumber(
-                  item.score ||
-                    0
-                )}
+              <td
+                style="
+                  text-align:center;
+                  font-weight:800;
+                  white-space:nowrap;
+                "
+              >
+                ${score} / ${totalMarks}
               </td>
 
-              <td>
-                ${Number(
-                  item.percentage ||
-                    0
-                ).toFixed(
-                  2
-                )}%
+              <td
+                style="
+                  text-align:center;
+                  font-weight:800;
+                  color:#0f766e;
+                  white-space:nowrap;
+                "
+              >
+                ${percentage.toFixed(2)}%
               </td>
-
             </tr>
-
           `;
-
         }
       );
 
+      /* -----------------------------------------
+         TEST NAME
+         ----------------------------------------- */
 
-      table.innerHTML = `
+      const testName =
+        escapeHtml(
+          results[0]?.test_name ||
+          "Online Examination"
+        );
 
-        <div
-          class="results-table-wrapper"
-        >
+      /* -----------------------------------------
+         FINAL RESULT UI
+         ----------------------------------------- */
 
-          <table
-            class="results-table"
+      if (box) {
+        box.innerHTML = `
+          <div class="result-title">
+            Result Found
+          </div>
+
+          <p>
+            <strong>
+              ${testName}
+            </strong>
+          </p>
+
+          <p>
+            <strong>
+              Test Code:
+            </strong>
+            ${escapeHtml(code)}
+          </p>
+
+          <p
+            style="
+              margin-top:8px;
+              margin-bottom:18px;
+              color:#64748b;
+            "
           >
+            ${results.length}
+            student(s) submitted this examination.
+          </p>
 
-            <thead>
+          <div
+            style="
+              width:100%;
+              overflow-x:auto;
+              border:1px solid #dbe5e7;
+              border-radius:14px;
+              background:#ffffff;
+            "
+          >
+            <table
+              style="
+                width:100%;
+                min-width:760px;
+                border-collapse:collapse;
+                font-size:14px;
+              "
+            >
+              <thead>
+                <tr
+                  style="
+                    background:#f0fdfa;
+                    border-bottom:2px solid #d5eeee;
+                  "
+                >
+                  <th
+                    style="
+                      padding:13px 10px;
+                      text-align:center;
+                    "
+                  >
+                    Rank
+                  </th>
 
-              <tr>
+                  <th
+                    style="
+                      padding:13px 10px;
+                      text-align:left;
+                    "
+                  >
+                    Student
+                  </th>
 
-                <th>
-                  #
-                </th>
+                  <th
+                    style="
+                      padding:13px 10px;
+                      text-align:center;
+                    "
+                  >
+                    Correct
+                  </th>
 
-                <th>
-                  Candidate
-                </th>
+                  <th
+                    style="
+                      padding:13px 10px;
+                      text-align:center;
+                    "
+                  >
+                    Wrong
+                  </th>
 
-                <th>
-                  Correct
-                </th>
+                  <th
+                    style="
+                      padding:13px 10px;
+                      text-align:center;
+                    "
+                  >
+                    Unanswered
+                  </th>
 
-                <th>
-                  Wrong
-                </th>
+                  <th
+                    style="
+                      padding:13px 10px;
+                      text-align:center;
+                    "
+                  >
+                    Score
+                  </th>
 
-                <th>
-                  Unanswered
-                </th>
+                  <th
+                    style="
+                      padding:13px 10px;
+                      text-align:center;
+                    "
+                  >
+                    Percentage
+                  </th>
+                </tr>
+              </thead>
 
-                <th>
-                  Score
-                </th>
+              <tbody>
+                ${tableRows}
+              </tbody>
+            </table>
+          </div>
+        `;
 
-                <th>
-                  Percentage
-                </th>
+        show(box);
 
-              </tr>
+        box.scrollIntoView({
+          behavior: "smooth",
+          block: "nearest"
+        });
+      }
 
-            </thead>
-
-
-            <tbody>
-
-              ${rows}
-
-            </tbody>
-
-          </table>
-
-        </div>
-
-      `;
-
-
-      show(
-        table
+    } catch (error) {
+      console.error(
+        "Result check error:",
+        error
       );
 
+      statusBox(
+        status,
+        error.message ||
+          "Could not check results.",
+        "error"
+      );
+
+    } finally {
+      setLoading(false);
     }
+  }
+);
 
-  } catch (
-    error
-  ) {
 
+/* =========================================================
+   PDF VIEWER
+   ========================================================= */
+
+async function initializePdfViewer(
+  url
+) {
+  const mount =
+    $("pdfViewerMount");
+
+  if (!mount) {
+    return;
+  }
+
+  mount.innerHTML = `
+    <div class="pdf-viewer">
+
+      <div class="pdf-toolbar">
+
+        <button
+          type="button"
+          id="pdfPrevBtn"
+          class="small-btn secondary-btn"
+        >
+          ‹
+        </button>
+
+        <span id="pdfPageInfo">
+          1 / 1
+        </span>
+
+        <button
+          type="button"
+          id="pdfNextBtn"
+          class="small-btn secondary-btn"
+        >
+          ›
+        </button>
+
+        <button
+          type="button"
+          id="pdfZoomOutBtn"
+          class="small-btn secondary-btn"
+        >
+          −
+        </button>
+
+        <span id="pdfZoomValue">
+          100%
+        </span>
+
+        <button
+          type="button"
+          id="pdfZoomInBtn"
+          class="small-btn secondary-btn"
+        >
+          +
+        </button>
+
+      </div>
+
+      <div
+        id="pdfCanvasContainer"
+        style="
+          width:100%;
+          overflow:auto;
+          -webkit-overflow-scrolling:touch;
+          text-align:center;
+        "
+      >
+        <canvas
+          id="pdfCanvas"
+        ></canvas>
+      </div>
+
+    </div>
+  `;
+
+  currentPdfUrl =
+    url;
+
+  const external =
+    $("pdfExternalLink");
+
+  if (external) {
+    external.href =
+      url;
+  }
+
+  try {
+    const pdfjs =
+      await loadPdfJs();
+
+    currentPdfDocument =
+      await pdfjs
+        .getDocument({
+          url,
+          withCredentials:
+            false
+        })
+        .promise;
+
+    currentPdfPage = 1;
+
+    currentPdfScale = 1;
+
+    bindPdfControls();
+
+    await renderPdfPage();
+
+  } catch (error) {
     console.error(
-      "All results error:",
+      "PDF viewer error:",
       error
     );
 
+    mount.innerHTML = `
+      <div class="status-box error">
+        PDF preview could not be loaded.
+        Use the Open PDF button below.
+      </div>
+    `;
+  }
+}
 
-    showStatus(
-      status,
-      error.message ||
-        "Could not load results.",
-      "error"
-    );
+function bindPdfControls() {
+  $("pdfPrevBtn")?.addEventListener(
+    "click",
+    async () => {
+      if (
+        currentPdfPage <= 1
+      ) {
+        return;
+      }
 
-  } finally {
+      currentPdfPage--;
 
-    setLoading(
-      false
-    );
+      await renderPdfPage();
+    }
+  );
 
+  $("pdfNextBtn")?.addEventListener(
+    "click",
+    async () => {
+      if (
+        !currentPdfDocument ||
+        currentPdfPage >=
+          currentPdfDocument.numPages
+      ) {
+        return;
+      }
+
+      currentPdfPage++;
+
+      await renderPdfPage();
+    }
+  );
+
+  $("pdfZoomOutBtn")?.addEventListener(
+    "click",
+    async () => {
+      currentPdfScale =
+        Math.max(
+          0.5,
+          currentPdfScale - 0.1
+        );
+
+      updatePdfZoom();
+
+      await renderPdfPage();
+    }
+  );
+
+  $("pdfZoomInBtn")?.addEventListener(
+    "click",
+    async () => {
+      currentPdfScale =
+        Math.min(
+          3,
+          currentPdfScale + 0.1
+        );
+
+      updatePdfZoom();
+
+      await renderPdfPage();
+    }
+  );
+
+  updatePdfZoom();
+}
+
+function updatePdfZoom() {
+  const value =
+    $("pdfZoomValue");
+
+  if (value) {
+    value.textContent =
+      `${Math.round(
+        currentPdfScale * 100
+      )}%`;
+  }
+}
+
+async function renderPdfPage() {
+  if (!currentPdfDocument) {
+    return;
   }
 
+  const canvas =
+    $("pdfCanvas");
+
+  const container =
+    $("pdfCanvasContainer");
+
+  if (
+    !canvas ||
+    !container
+  ) {
+    return;
+  }
+
+  const page =
+    await currentPdfDocument
+      .getPage(
+        currentPdfPage
+      );
+
+  const baseViewport =
+    page.getViewport({
+      scale: 1
+    });
+
+  const availableWidth =
+    Math.max(
+      280,
+      container.clientWidth - 20
+    );
+
+  const fitScale =
+    availableWidth /
+    baseViewport.width;
+
+  const scale =
+    fitScale *
+    currentPdfScale;
+
+  const viewport =
+    page.getViewport({
+      scale
+    });
+
+  const dpr =
+    window.devicePixelRatio || 1;
+
+  canvas.width =
+    Math.floor(
+      viewport.width * dpr
+    );
+
+  canvas.height =
+    Math.floor(
+      viewport.height * dpr
+    );
+
+  canvas.style.width =
+    `${viewport.width}px`;
+
+  canvas.style.height =
+    `${viewport.height}px`;
+
+  const context =
+    canvas.getContext("2d");
+
+  context.setTransform(
+    dpr,
+    0,
+    0,
+    dpr,
+    0,
+    0
+  );
+
+  await page.render({
+    canvasContext:
+      context,
+    viewport
+  }).promise;
+
+  const pageInfo =
+    $("pdfPageInfo");
+
+  if (pageInfo) {
+    pageInfo.textContent =
+      `${currentPdfPage} / ${currentPdfDocument.numPages}`;
+  }
 }
 
 
 /* =========================================================
-   RESULT BUTTON EVENTS
+   TIMER
    ========================================================= */
 
-$("checkResultBtn")
-  ?.addEventListener(
-    "click",
-    checkSingleResult
-  );
-
-
-$("checkAllResultsBtn")
-  ?.addEventListener(
-    "click",
-    checkAllResults
-  );
-
-
-/* =========================================================
-   ENTER KEY SUPPORT
-   ========================================================= */
-
-$("resultCode")
-  ?.addEventListener(
-    "keydown",
-    (
-      event
-    ) => {
-
-      if (
-        event.key ===
-        "Enter"
-      ) {
-
-        event.preventDefault();
-
-        checkSingleResult();
-
-      }
-
-    }
-  );
-
-
-$("resultsCode")
-  ?.addEventListener(
-    "keydown",
-    (
-      event
-    ) => {
-
-      if (
-        event.key ===
-        "Enter"
-      ) {
-
-        event.preventDefault();
-
-        checkAllResults();
-
-      }
-
-    }
-  );
-
-
-/* =========================================================
-   BACK TO JOIN SCREEN
-   ========================================================= */
-
-$("backToJoinBtn")
-  ?.addEventListener(
-    "click",
-    async () => {
-
-      /*
-         Stop current PDF rendering.
-      */
-
-      pdfRenderToken++;
-
-
-      if (
-        currentPdfLoadingTask
-      ) {
-
-        try {
-
-          await currentPdfLoadingTask.destroy();
-
-        } catch {}
-
-      }
-
-
-      if (
-        currentPdfDocument
-      ) {
-
-        try {
-
-          await currentPdfDocument.destroy();
-
-        } catch {}
-
-      }
-
-
-      currentPdfLoadingTask =
-        null;
-
-
-      currentPdfDocument =
-        null;
-
-
-      currentPdfUrl =
-        "";
-
-
-      currentPdfPage =
-        1;
-
-
-      currentPdfScale =
-        1;
-
-
-      currentTest =
-        null;
-
-
-      selectedAnswers =
-        [];
-
-
-      candidateName =
-        "";
-
-
-      /*
-         Remove runtime PDF viewer.
-
-         Again: this does NOT delete the PDF
-         from Supabase storage.
-      */
-
-      document
-        .querySelectorAll(
-          ".pdf-viewer"
-        )
-        .forEach(
-          (
-            viewer
-          ) => {
-
-            viewer.remove();
-
-          }
-        );
-
-
-      showScreen(
-        "joinScreen"
-      );
-
-
-      hide(
-        $("resultBox")
-      );
-
-    }
-  );
-
-
-/* =========================================================
-   WINDOW RESIZE
-   ========================================================= */
-
-/*
-   Android orientation changes and desktop resizing
-   can change the available PDF width.
-
-   We don't automatically reset manual zoom.
-
-   We only re-render when the viewer is active.
-*/
-
-let resizeTimer =
-  null;
-
-
-window.addEventListener(
-  "resize",
-  () => {
-
-    clearTimeout(
-      resizeTimer
-    );
-
-
-    resizeTimer =
-      setTimeout(
-        () => {
+function startExamTimer(
+  minutes
+) {
+  stopExamTimer();
+
+  const timer =
+    $("examTimer");
+
+  const value =
+    $("examTimerValue");
+
+  if (
+    !minutes ||
+    minutes <= 0
+  ) {
+    hide(timer);
+    return;
+  }
+
+  remainingSeconds =
+    minutes * 60;
+
+  show(timer);
+
+  updateTimerDisplay();
+
+  timerInterval =
+    setInterval(
+      () => {
+        remainingSeconds--;
+
+        updateTimerDisplay();
+
+        if (
+          remainingSeconds <= 0
+        ) {
+          stopExamTimer();
 
           if (
-            currentPdfDocument &&
-            !pdfRendering
+            !examSubmitted
           ) {
-
-            renderPdfPage(
-              true
+            alert(
+              "Time is over. Your exam will be submitted."
             );
 
+            $("submitExamBtn")
+              ?.click();
           }
+        }
+      },
+      1000
+    );
+}
 
-        },
-        180
-      );
+function stopExamTimer() {
+  if (timerInterval) {
+    clearInterval(
+      timerInterval
+    );
 
+    timerInterval =
+      null;
   }
-);
+}
+
+function updateTimerDisplay() {
+  const value =
+    $("examTimerValue");
+
+  if (!value) return;
+
+  const minutes =
+    Math.floor(
+      remainingSeconds / 60
+    );
+
+  const seconds =
+    remainingSeconds % 60;
+
+  value.textContent =
+    `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
 
 
 /* =========================================================
-   VISIBILITY RECOVERY
+   NAVIGATION
    ========================================================= */
 
-/*
-   Some Android browsers pause canvas rendering when
-   the tab/app goes into the background.
-
-   When the page becomes visible again, redraw the
-   current PDF page.
-*/
-
-document.addEventListener(
-  "visibilitychange",
+$("showCreateBtn")?.addEventListener(
+  "click",
   () => {
+    showScreen(
+      "createScreen"
+    );
 
-    if (
-      document.visibilityState ===
-      "visible"
-    ) {
+    renderOptionSettings();
+  }
+);
 
-      if (
-        currentPdfDocument &&
-        !pdfRendering
-      ) {
+$("showJoinBtn")?.addEventListener(
+  "click",
+  () => {
+    showScreen(
+      "joinScreen"
+    );
 
-        setTimeout(
-          () => {
+    $("joinCode")
+      ?.focus();
+  }
+);
 
-            renderPdfPage(
-              true
-            );
+$("showResultBtn")?.addEventListener(
+  "click",
+  () => {
+    showScreen(
+      "resultScreen"
+    );
 
-          },
-          120
-        );
+    $("resultCode")
+      ?.focus();
+  }
+);
 
-      }
+$("backHomeFromCreate")?.addEventListener(
+  "click",
+  () => {
+    showScreen(
+      "homeScreen"
+    );
+  }
+);
 
-    }
+$("backHomeFromJoin")?.addEventListener(
+  "click",
+  () => {
+    showScreen(
+      "homeScreen"
+    );
+  }
+);
 
+$("backHomeFromResult")?.addEventListener(
+  "click",
+  () => {
+    showScreen(
+      "homeScreen"
+    );
+  }
+);
+
+$("backToCreateBtn")?.addEventListener(
+  "click",
+  () => {
+    showScreen(
+      "createScreen"
+    );
+  }
+);
+
+$("goHomeAfterCreate")?.addEventListener(
+  "click",
+  () => {
+    showScreen(
+      "homeScreen"
+    );
   }
 );
 
 
 /* =========================================================
-   FINAL STARTUP
+   COPY CODE
    ========================================================= */
 
-updatePdfPageInfo();
+$("copyCodeBtn")?.addEventListener(
+  "click",
+  async () => {
+    const code =
+      $("createdCode")
+        ?.textContent
+        ?.trim();
 
-updatePdfButtons();
-
-updatePdfZoom();
-
-updateProgress();
-/* =========================================================
-   HOME NAVIGATION
-   ========================================================= */
-
-$("showCreateBtn")
-  ?.addEventListener(
-    "click",
-    () => {
-
-      showScreen(
-        "createScreen"
-      );
-
-      renderOptionSettings();
-
+    if (!code) {
+      return;
     }
-  );
 
+    try {
+      await navigator.clipboard
+        .writeText(code);
 
-$("showJoinBtn")
-  ?.addEventListener(
-    "click",
-    () => {
+      const button =
+        $("copyCodeBtn");
 
-      showScreen(
-        "joinScreen"
-      );
+      const old =
+        button.textContent;
 
-      const input =
-        $("joinCode");
+      button.textContent =
+        "Copied ✓";
 
-      if (input) {
-        input.value = "";
-        input.focus();
-      }
-
-    }
-  );
-
-
-$("showResultBtn")
-  ?.addEventListener(
-    "click",
-    () => {
-
-      showScreen(
-        "resultScreen"
-      );
-
-      const input =
-        $("resultCode");
-
-      if (input) {
-        input.value = "";
-        input.focus();
-      }
-
-    }
-  );
-
-
-$("showResultsBtn")
-  ?.addEventListener(
-    "click",
-    () => {
-
-      showScreen(
-        "resultsScreen"
-      );
-
-      const input =
-        $("resultsCode");
-
-      if (input) {
-        input.value = "";
-        input.focus();
-      }
-
-    }
-  );
-
-
-/* =========================================================
-   CREATE SCREEN
-   ========================================================= */
-
-$("questionCount")
-  ?.addEventListener(
-    "input",
-    () => {
-
-      const value =
-        Number(
-          $("questionCount")
-            ?.value
-        ) || 40;
-
-      currentQuestionCount =
-        Math.max(
-          1,
-          Math.min(
-            300,
-            value
-          )
-        );
-
-      renderOptionSettings();
-
-    }
-  );
-
-
-$("defaultOptions")
-  ?.addEventListener(
-    "change",
-    () => {
-
-      renderOptionSettings();
-
-    }
-  );
-
-
-$("backHomeFromCreate")
-  ?.addEventListener(
-    "click",
-    () => {
-
-      showScreen(
-        "homeScreen"
-      );
-
-    }
-  );
-
-
-$("clearCreateBtn")
-  ?.addEventListener(
-    "click",
-    () => {
-
-      if (
-        !confirm(
-          "Clear all test creation fields?"
-        )
-      ) {
-        return;
-      }
-
-
-      if (
-        $("testName")
-      ) {
-        $("testName")
-          .value = "";
-      }
-
-
-      if (
-        $("pdfFile")
-      ) {
-        $("pdfFile")
-          .value = "";
-      }
-
-
-      if (
-        $("questionCount")
-      ) {
-        $("questionCount")
-          .value = "40";
-      }
-
-
-      if (
-        $("defaultOptions")
-      ) {
-        $("defaultOptions")
-          .value = "4";
-      }
-
-
-      if (
-        $("pdfStatus")
-      ) {
-        $("pdfStatus")
-          .textContent = "";
-      }
-
-
-      if (
-        $("pdfPreview")
-      ) {
-        $("pdfPreview")
-          .src = "";
-      }
-
-
-      hide(
-        $("pdfPreviewBox")
-      );
-
-
-      renderOptionSettings();
-
-    }
-  );
-
-
-/* =========================================================
-   ANSWER KEY SCREEN
-   ========================================================= */
-
-$("backToCreateBtn")
-  ?.addEventListener(
-    "click",
-    () => {
-
-      showScreen(
-        "createScreen"
-      );
-
-    }
-  );
-
-
-/* =========================================================
-   COPY TEST CODE
-   ========================================================= */
-
-$("copyCodeBtn")
-  ?.addEventListener(
-    "click",
-    async () => {
-
-      const code =
-        $("createdCode")
-          ?.textContent
-          ?.trim();
-
-
-      if (!code) {
-        return;
-      }
-
-
-      try {
-
-        await navigator
-          .clipboard
-          .writeText(
-            code
-          );
-
-
-        const button =
-          $("copyCodeBtn");
-
-
-        if (button) {
-
-          const oldText =
-            button.textContent;
-
-
+      setTimeout(
+        () => {
           button.textContent =
-            "Copied ✓";
-
-
-          setTimeout(
-            () => {
-
-              button.textContent =
-                oldText;
-
-            },
-            1400
-          );
-
-        }
-
-      } catch (
-        error
-      ) {
-
-        /*
-           Clipboard API may be blocked on some
-           Android browsers.
-
-           Fallback:
-        */
-
-        try {
-
-          const textarea =
-            document.createElement(
-              "textarea"
-            );
-
-          textarea.value =
-            code;
-
-          textarea.style.position =
-            "fixed";
-
-          textarea.style.opacity =
-            "0";
-
-          document.body.appendChild(
-            textarea
-          );
-
-          textarea.focus();
-
-          textarea.select();
-
-          document.execCommand(
-            "copy"
-          );
-
-          textarea.remove();
-
-          alert(
-            "Test code copied."
-          );
-
-        } catch (
-          fallbackError
-        ) {
-
-          alert(
-            `Test Code: ${code}`
-          );
-
-        }
-
-      }
-
-    }
-  );
-
-
-/* =========================================================
-   AFTER TEST CREATION
-   ========================================================= */
-
-$("goHomeAfterCreate")
-  ?.addEventListener(
-    "click",
-    () => {
-
-      /*
-         Clear only browser-side state.
-
-         Existing test remains safely stored in
-         Supabase.
-      */
-
-      currentTest =
-        null;
-
-      currentPdfUrl =
-        "";
-
-      currentAnswerKey =
-        [];
-
-      currentOptions =
-        [];
-
-      selectedAnswers =
-        [];
-
-
-      showScreen(
-        "homeScreen"
+            old;
+        },
+        1500
       );
 
+    } catch {
+      alert(
+        `Test Code: ${code}`
+      );
     }
-  );
+  }
+);
 
 
 /* =========================================================
-   JOIN BUTTON
+   CLEAR CREATE FORM
    ========================================================= */
 
-$("joinBtn")
-  ?.addEventListener(
-    "click",
-    joinTest
-  );
-
-
-$("joinCode")
-  ?.addEventListener(
-    "input",
-    (
-      event
-    ) => {
-
-      event.target.value =
-        event.target.value
-          .toUpperCase()
-          .replace(
-            /[^A-Z0-9]/g,
-            ""
-          )
-          .slice(
-            0,
-            6
-          );
-
+$("clearCreateBtn")?.addEventListener(
+  "click",
+  () => {
+    if ($("testName")) {
+      $("testName").value = "";
     }
-  );
 
-
-$("joinCode")
-  ?.addEventListener(
-    "keydown",
-    (
-      event
-    ) => {
-
-      if (
-        event.key ===
-        "Enter"
-      ) {
-
-        event.preventDefault();
-
-        joinTest();
-
-      }
-
+    if ($("pdfFile")) {
+      $("pdfFile").value = "";
     }
-  );
+
+    if ($("questionCount")) {
+      $("questionCount").value =
+        "40";
+    }
+
+    if ($("defaultOptions")) {
+      $("defaultOptions").value =
+        "4";
+    }
+
+    if ($("durationMinutes")) {
+      $("durationMinutes").value =
+        "60";
+    }
+
+    if ($("pdfStatus")) {
+      $("pdfStatus").textContent =
+        "";
+    }
+
+    hide(
+      $("pdfPreviewBox")
+    );
+
+    currentTest = null;
+    currentOptions = [];
+    currentAnswerKey = [];
+
+    renderOptionSettings();
+  }
+);
+
+
+/* =========================================================
+   CREATE FORM CHANGES
+   ========================================================= */
+
+$("questionCount")?.addEventListener(
+  "change",
+  () => {
+    renderOptionSettings();
+  }
+);
+
+$("defaultOptions")?.addEventListener(
+  "change",
+  () => {
+    renderOptionSettings();
+  }
+);
+
+
+/* =========================================================
+   JOIN CODE FORMAT
+   ========================================================= */
+
+$("joinCode")?.addEventListener(
+  "input",
+  (event) => {
+    event.target.value =
+      event.target.value
+        .toUpperCase()
+        .replace(
+          /[^A-Z0-9]/g,
+          ""
+        )
+        .slice(
+          0,
+          6
+        );
+  }
+);
+
+$("resultCode")?.addEventListener(
+  "input",
+  (event) => {
+    event.target.value =
+      event.target.value
+        .toUpperCase()
+        .replace(
+          /[^A-Z0-9]/g,
+          ""
+        )
+        .slice(
+          0,
+          6
+        );
+  }
+);
+
+
+/* =========================================================
+   ENTER KEY
+   ========================================================= */
+
+$("joinCode")?.addEventListener(
+  "keydown",
+  (event) => {
+    if (
+      event.key ===
+      "Enter"
+    ) {
+      event.preventDefault();
+
+      $("joinBtn")
+        ?.click();
+    }
+  }
+);
+
+$("resultCode")?.addEventListener(
+  "keydown",
+  (event) => {
+    if (
+      event.key ===
+      "Enter"
+    ) {
+      event.preventDefault();
+
+      $("checkResultBtn")
+        ?.click();
+    }
+  }
+);
 
 
 /* =========================================================
    EXIT EXAM
    ========================================================= */
 
-$("exitExamBtn")
-  ?.addEventListener(
-    "click",
-    async () => {
+$("exitExamBtn")?.addEventListener(
+  "click",
+  () => {
+    const answered =
+      selectedAnswers.filter(
+        Boolean
+      ).length;
 
-      if (
-        !confirm(
-          "Exit this test?\n\nYour current answers will not be submitted."
-        )
-      ) {
-
-        return;
-
-      }
-
-
-      /*
-         Stop all current PDF operations.
-      */
-
-      pdfRenderToken++;
-
-
-      if (
-        currentPdfLoadingTask
-      ) {
-
-        try {
-
-          await currentPdfLoadingTask.destroy();
-
-        } catch {}
-
-      }
-
-
-      if (
-        currentPdfDocument
-      ) {
-
-        try {
-
-          await currentPdfDocument.destroy();
-
-        } catch {}
-
-      }
-
-
-      currentPdfLoadingTask =
-        null;
-
-
-      currentPdfDocument =
-        null;
-
-
-      currentPdfUrl =
-        "";
-
-
-      currentPdfPage =
-        1;
-
-
-      currentPdfScale =
-        1;
-
-
-      currentTest =
-        null;
-
-
-      selectedAnswers =
-        [];
-
-
-      candidateName =
-        "";
-
-
-      /*
-         Remove ONLY the browser viewer.
-
-         No Supabase test or PDF is deleted.
-      */
-
-      document
-        .querySelectorAll(
-          ".pdf-viewer"
-        )
-        .forEach(
-          (
-            viewer
-          ) => {
-
-            viewer.remove();
-
-          }
+    if (
+      answered > 0 &&
+      !examSubmitted
+    ) {
+      const ok =
+        confirm(
+          "You have selected answers.\n\nExit the exam?"
         );
 
-
-      showScreen(
-        "homeScreen"
-      );
-
-    }
-  );
-
-
-/* =========================================================
-   RESULT SCREEN NAVIGATION
-   ========================================================= */
-
-$("backHomeFromJoin")
-  ?.addEventListener(
-    "click",
-    () => {
-
-      showScreen(
-        "homeScreen"
-      );
-
-    }
-  );
-
-
-$("backHomeFromResult")
-  ?.addEventListener(
-    "click",
-    () => {
-
-      hide(
-        $("singleResultBox")
-      );
-
-      hideStatus(
-        $("resultStatus")
-      );
-
-      showScreen(
-        "homeScreen"
-      );
-
-    }
-  );
-
-
-$("backHomeFromResults")
-  ?.addEventListener(
-    "click",
-    () => {
-
-      hide(
-        $("resultsSummary")
-      );
-
-      hide(
-        $("resultsTableContainer")
-      );
-
-      hideStatus(
-        $("resultsStatus")
-      );
-
-      showScreen(
-        "homeScreen"
-      );
-
-    }
-  );
-
-
-/* =========================================================
-   CREATED SCREEN -> HOME
-   ========================================================= */
-
-$("createdCode")
-  ?.addEventListener(
-    "click",
-    async () => {
-
-      const code =
-        $("createdCode")
-          ?.textContent
-          ?.trim();
-
-
-      if (
-        !code
-      ) {
+      if (!ok) {
         return;
       }
-
-
-      try {
-
-        await navigator
-          .clipboard
-          .writeText(
-            code
-          );
-
-      } catch {}
-
     }
-  );
 
+    stopExamTimer();
 
-/* =========================================================
-   RESULT CODE INPUT NORMALIZATION
-   ========================================================= */
+    currentPdfDocument =
+      null;
 
-$("resultCode")
-  ?.addEventListener(
-    "input",
-    (
-      event
-    ) => {
+    currentPdfUrl =
+      "";
 
-      event.target.value =
-        event.target.value
-          .toUpperCase()
-          .replace(
-            /[^A-Z0-9]/g,
-            ""
-          )
-          .slice(
-            0,
-            6
-          );
+    selectedAnswers =
+      [];
 
-    }
-  );
+    examSubmitted =
+      false;
 
-
-$("resultsCode")
-  ?.addEventListener(
-    "input",
-    (
-      event
-    ) => {
-
-      event.target.value =
-        event.target.value
-          .toUpperCase()
-          .replace(
-            /[^A-Z0-9]/g,
-            ""
-          )
-          .slice(
-            0,
-            6
-          );
-
-    }
-  );
-
-
-/* =========================================================
-   CANDIDATE NAME
-   ========================================================= */
-
-$("candidateName")
-  ?.addEventListener(
-    "input",
-    (
-      event
-    ) => {
-
-      candidateName =
-        event.target.value
-          .trim();
-
-    }
-  );
-
-
-/* =========================================================
-   PREVENT ACCIDENTAL FORM SUBMISSION
-   ========================================================= */
-
-document
-  .addEventListener(
-    "keydown",
-    (
-      event
-    ) => {
-
-      if (
-        event.key !==
-        "Enter"
-      ) {
-
-        return;
-
-      }
-
-
-      const target =
-        event.target;
-
-
-      /*
-         Don't interfere with text inputs where Enter
-         may have a normal meaning.
-
-         Specific Enter handlers above handle:
-         - join code
-         - result code
-         - all-results code
-      */
-
-      if (
-        target instanceof
-          HTMLTextAreaElement
-      ) {
-
-        return;
-
-      }
-
-    }
-  );
-
-
-/* =========================================================
-   PDF TOUCH SWIPE
-   ========================================================= */
-
-/*
-   Android users can also swipe horizontally on the
-   PDF area to move between pages.
-
-   IMPORTANT:
-
-   This does NOT replace normal PDF scrolling.
-
-   A swipe is only interpreted as page navigation when
-   the horizontal movement is clearly larger than the
-   vertical movement.
-*/
-
-const pdfTouchContainer =
-  document.getElementById(
-    "pdfViewerMount"
-  );
-
-
-function attachPdfTouchNavigation() {
-
-  const container =
-    document.querySelector(
-      "#pdfCanvasContainer"
+    showScreen(
+      "homeScreen"
     );
-
-
-  if (
-    !container ||
-    container.dataset.touchBound ===
-      "true"
-  ) {
-
-    return;
-
   }
+);
 
 
-  container.dataset.touchBound =
-    "true";
+/* =========================================================
+   INITIALIZATION
+   ========================================================= */
 
+function initializeApp() {
+  renderOptionSettings();
 
-  container.addEventListener(
-    "touchstart",
-    (
-      event
-    ) => {
+  showScreen(
+    "homeScreen"
+  );
+}
 
-      if (
-        event.touches.length !==
-        1
-      ) {
-
-        return;
-
-      }
-
-
-      const touch =
-        event.touches[0];
-
-
-      pdfTouchStartX =
-        touch.clientX;
-
-
-      pdfTouchStartY =
-        touch.clientY;
-
-    },
+if (
+  document.readyState ===
+  "loading"
+) {
+  document.addEventListener(
+    "DOMContentLoaded",
+    initializeApp,
     {
-      passive:
-        true
+      once: true
     }
   );
-
-
-  container.addEventListener(
-    "touchend",
-    (
-      event
-    ) => {
-
-      if (
-        event.changedTouches.length !==
-        1
-      ) {
-
-        return;
-
-      }
-
-
-      const touch =
-        event.changedTouches[0];
-
-
-      const dx =
-        touch.clientX -
-        pdfTouchStartX;
-
-
-      const dy =
-        touch.clientY -
-        pdfTouchStartY;
-
-
-      /*
-         Only a strong horizontal swipe becomes
-         page navigation.
-      */
-
-      if (
-        Math.abs(dx) <
-        80
-      ) {
-
-        return;
-
-      }
-
-
-      if (
-        Math.abs(dx) <=
-        Math.abs(dy) *
-          1.25
-      ) {
-
-        return;
-
-      }
-
-
-      if (
-        dx < 0
-      ) {
-
-        goToPdfPage(
-          currentPdfPage + 1
-        );
-
-      } else {
-
-        goToPdfPage(
-          currentPdfPage - 1
-        );
-
-      }
-
-    },
-    {
-      passive:
-        true
-    }
-  );
-
+} else {
+  initializeApp();
 }
 
 
 /* =========================================================
-   PDF VIEWER MOUNT OBSERVER
+   ERROR LOGGING
    ========================================================= */
 
-/*
-   The PDF viewer is dynamically created after the
-   exam screen opens.
-
-   MutationObserver attaches Android touch navigation
-   once the canvas container exists.
-*/
-
-const pdfMount =
-  document.getElementById(
-    "pdfViewerMount"
-  );
-
-
-if (
-  pdfMount
-) {
-
-  const observer =
-    new MutationObserver(
-      () => {
-
-        attachPdfTouchNavigation();
-
-      }
+window.addEventListener(
+  "unhandledrejection",
+  (event) => {
+    console.error(
+      "Unhandled promise rejection:",
+      event.reason
     );
+  }
+);
 
-
-  observer.observe(
-    pdfMount,
-    {
-      childList:
-        true,
-
-      subtree:
-        true
-    }
-  );
-
-}
-
-
-/* =========================================================
-   INITIAL SCREEN
-   ========================================================= */
-
-document
-  .querySelectorAll(
-    ".screen"
-  )
-  .forEach(
-    (
-      screen
-    ) => {
-
-      hide(
-        screen
-      );
-
-    }
-  );
-
-
-showScreen(
-  "homeScreen"
+window.addEventListener(
+  "error",
+  (event) => {
+    console.error(
+      "JavaScript error:",
+      event.error ||
+        event.message
+    );
+  }
 );
 
 
 /* =========================================================
-   INITIAL FORM STATE
+   END
    ========================================================= */
-
-if (
-  $("questionCount")
-) {
-
-  $("questionCount")
-    .value =
-    "40";
-
-}
-
-
-if (
-  $("defaultOptions")
-) {
-
-  $("defaultOptions")
-    .value =
-    "4";
-
-}
-
-
-renderOptionSettings();
-
-
-/* =========================================================
-   INITIAL PDF STATE
-   ========================================================= */
-
-currentPdfDocument =
-  null;
-
-currentPdfLoadingTask =
-  null;
-
-currentPdfPage =
-  1;
-
-currentPdfScale =
-  1;
-
-pdfRendering =
-  false;
-
-pdfRenderQueued =
-  false;
-
-
-/* =========================================================
-   FINAL READY MESSAGE
-   ========================================================= */
-
-console.log(
-  "Exam OMR initialized successfully."
-);
-
-console.log(
-  "PDF viewer mode: binary fetch + PDF.js canvas"
-);
-
-console.log(
-  "Android touch support: enabled"
-);
