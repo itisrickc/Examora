@@ -1246,7 +1246,11 @@ $("joinBtn")
           );
 
           renderExam();
-
+            startExamTimer(
+          Number(
+            currentTest.duration_minutes
+          ) || 0
+        );
           await initializePdfViewer(
             currentTest.pdf_url
           );
@@ -1254,11 +1258,7 @@ $("joinBtn")
         }
 
 
-        startExamTimer(
-          Number(
-            currentTest.duration_minutes
-          ) || 0
-        );
+        
 
 
       } catch (error) {
