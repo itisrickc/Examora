@@ -12,26 +12,28 @@
 
   <meta
     name="theme-color"
-    content="#07131f"
+    content="#0f766e"
   >
 
   <meta
     name="description"
-    content="Premium online OMR examination system."
+    content="Examora by Acedryx — premium online examination and OMR assessment platform."
   >
 
-  <title>Exam OMR</title>
+  <title>Examora by Acedryx</title>
 
   <link
     rel="stylesheet"
     href="style.css"
   >
 
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fuzzy+Bubbles:wght@400;700&display=swap" rel="stylesheet">
 </head>
 
 
 <body>
-
 
   <!-- =====================================================
        BACKGROUND DECORATION
@@ -54,37 +56,67 @@
 
     <div class="container topbar-inner">
 
-      <div class="brand">
+      <button
+        class="brand"
+        id="brandHomeBtn"
+        type="button"
+        aria-label="Go to Examora home"
+      >
 
-        <div class="brand-mark">
-          E
+        <div class="brand-logo">
+
+          <img
+            src="examora_logo.png"
+            alt="Examora"
+          >
+
         </div>
+
 
         <div class="brand-text">
 
           <strong>
-            Exam OMR
+            Examora
           </strong>
 
           <span>
-            Online Examination
+            BY ACEDRYX
           </span>
 
         </div>
 
-      </div>
+      </button>
 
-      <div class="header-status">
 
-        <span class="status-dot"></span>
+      <div class="header-actions">
 
-        Secure
+        <div class="header-status">
+
+          <span class="status-dot"></span>
+
+          <span>
+            Secure
+          </span>
+
+        </div>
+
+
+        <button
+          id="examoraThemeToggle"
+          class="theme-toggle"
+          type="button"
+          aria-label="Switch theme"
+          title="Switch theme"
+        >
+          ☾
+        </button>
 
       </div>
 
     </div>
 
   </header>
+
 
 
   <!-- =====================================================
@@ -103,135 +135,450 @@
       class="screen"
     >
 
-      <div class="hero card">
+      <div class="examora-home-hero">
 
-        <div class="hero-glow"></div>
-
-
-        <div class="hero-icon">
-
-          <span>
-            OMR
-          </span>
-
-        </div>
+        <!-- Confirmed landing-page decorative balloons / orbits -->
+        <div class="hero-balloon hero-balloon-one"></div>
+        <div class="hero-balloon hero-balloon-two"></div>
+        <div class="hero-balloon hero-balloon-three"></div>
+        <div class="hero-balloon hero-balloon-four"></div>
+        <div class="hero-orbit hero-orbit-one"></div>
+        <div class="hero-orbit hero-orbit-two"></div>
 
 
-        <div class="hero-badge">
-          SIMPLE • FAST • SECURE
-        </div>
+        <div class="home-glow home-glow-one"></div>
+
+        <div class="home-glow home-glow-two"></div>
 
 
-        <h1>
-          Online Examination,
-          <span>
-            Reimagined.
-          </span>
-        </h1>
+        <div class="home-hero-content">
 
 
-        <p class="hero-description">
-          Create professional OMR-based examinations,
-          share a simple test code, and let candidates
-          complete their exam from any device.
-        </p>
+          <div class="hero-badge">
 
+            <span class="hero-badge-dot"></span>
 
-        <div class="home-actions">
-
-
-          <button
-            id="showCreateBtn"
-            class="primary-btn"
-            type="button"
-          >
-
-            <span>
-              Create New Test
-            </span>
-
-            <span class="button-arrow">
-              →
-            </span>
-
-          </button>
-
-
-          <button
-            id="showJoinBtn"
-            class="secondary-btn"
-            type="button"
-          >
-
-            <span>
-              Join Test with Code
-            </span>
-
-            <span class="button-arrow">
-              →
-            </span>
-
-          </button>
-
-          <button
-            id="showResultBtn"
-            class="secondary-btn"
-            type="button"
-          >
-            <span>Check Result</span>
-            <span class="button-arrow">→</span>
-          </button>
-
-
-
-        </div>
-
-
-        <div class="hero-features">
-
-          <div class="feature-item">
-
-            <span class="feature-icon">
-              ✓
-            </span>
-
-            <span>
-              Instant Results
-            </span>
+            ONLINE EXAMINATION PLATFORM
 
           </div>
 
 
-          <div class="feature-item">
+          <h1>
 
-            <span class="feature-icon">
-              ✓
-            </span>
+            Assess smarter.
 
             <span>
-              Mobile Friendly
+              Perform better.
             </span>
+
+          </h1>
+
+
+          <p class="hero-description">
+
+            Create professional examinations,
+            conduct secure assessments and
+            evaluate results with a seamless
+            OMR experience.
+
+          </p>
+
+
+
+          <div class="home-actions">
+
+
+            <button
+              id="showCreateBtn"
+              class="home-action home-action-primary"
+              type="button"
+            >
+
+              <span class="home-action-icon">
+                +
+              </span>
+
+              <span class="home-action-content">
+
+                <strong>
+                  Create New Test
+                </strong>
+
+                <small>
+                  Build your examination
+                </small>
+
+              </span>
+
+              <span class="home-action-arrow">
+                →
+              </span>
+
+            </button>
+
+
+
+            <button
+              id="showJoinBtn"
+              class="home-action home-action-secondary"
+              type="button"
+            >
+
+              <span class="home-action-icon">
+                ↗
+              </span>
+
+              <span class="home-action-content">
+
+                <strong>
+                  Join Test
+                </strong>
+
+                <small>
+                  Enter your test code
+                </small>
+
+              </span>
+
+              <span class="home-action-arrow">
+                →
+              </span>
+
+            </button>
+
+
+
+            <button
+              id="showResultBtn"
+              class="home-action home-action-result"
+              type="button"
+            >
+
+              <span class="home-action-icon">
+                ✓
+              </span>
+
+              <span class="home-action-content">
+
+                <strong>
+                  Check Result
+                </strong>
+
+                <small>
+                  View your submitted result
+                </small>
+
+              </span>
+
+              <span class="home-action-arrow">
+                →
+              </span>
+
+            </button>
+
 
           </div>
 
 
-          <div class="feature-item">
 
-            <span class="feature-icon">
-              ✓
-            </span>
+          <div class="hero-features">
 
-            <span>
-              PDF Support
-            </span>
+
+            <div class="feature-item">
+
+              <span class="feature-icon">
+                ✓
+              </span>
+
+              <span>
+                Instant Results
+              </span>
+
+            </div>
+
+
+            <div class="feature-item">
+
+              <span class="feature-icon">
+                ✓
+              </span>
+
+              <span>
+                PDF Support
+              </span>
+
+            </div>
+
+
+            <div class="feature-item">
+
+              <span class="feature-icon">
+                ✓
+              </span>
+
+              <span>
+                Any Device
+              </span>
+
+            </div>
+
 
           </div>
+
 
         </div>
+
+
+
+        <div class="home-hero-visual">
+
+          <div class="visual-backdrop"></div>
+
+
+          <div class="assessment-card">
+
+
+            <div class="assessment-card-header">
+
+              <div>
+
+                <span>
+                  CURRENT ASSESSMENT
+                </span>
+
+                <strong>
+                  Mathematics Test
+                </strong>
+
+              </div>
+
+
+              <div class="assessment-live">
+                ● LIVE
+              </div>
+
+            </div>
+
+
+
+            <div class="assessment-score-area">
+
+
+              <div class="score-ring">
+
+                <div class="score-ring-inner">
+
+                  <strong>
+                    84%
+                  </strong>
+
+                  <span>
+                    Score
+                  </span>
+
+                </div>
+
+              </div>
+
+
+              <div class="score-details">
+
+                <strong>
+                  Performance
+                </strong>
+
+                <span>
+                  84 out of 100
+                </span>
+
+                <div class="score-line">
+
+                  <span></span>
+
+                </div>
+
+              </div>
+
+
+            </div>
+
+
+
+            <div class="assessment-stats">
+
+
+              <div>
+
+                <strong>
+                  84
+                </strong>
+
+                <span>
+                  Correct
+                </span>
+
+              </div>
+
+
+              <div>
+
+                <strong>
+                  10
+                </strong>
+
+                <span>
+                  Wrong
+                </span>
+
+              </div>
+
+
+              <div>
+
+                <strong>
+                  06
+                </strong>
+
+                <span>
+                  Skipped
+                </span>
+
+              </div>
+
+
+            </div>
+
+
+          </div>
+
+
+
+          <div class="floating-info floating-info-top">
+
+            <div class="floating-info-icon">
+              ✓
+            </div>
+
+            <div>
+
+              <strong>
+                Auto Evaluation
+              </strong>
+
+              <span>
+                Results ready
+              </span>
+
+            </div>
+
+          </div>
+
+
+
+          <div class="floating-info floating-info-bottom">
+
+            <div class="floating-info-icon">
+              ◉
+            </div>
+
+            <div>
+
+              <strong>
+                100 Questions
+              </strong>
+
+              <span>
+                OMR supported
+              </span>
+
+            </div>
+
+          </div>
+
+
+        </div>
+
 
       </div>
 
+
+
+      <div class="home-feature-grid">
+
+
+        <div class="home-feature-card">
+
+          <span class="feature-index">
+            01
+          </span>
+
+          <div>
+
+            <strong>
+              Create
+            </strong>
+
+            <p>
+              Upload your question paper
+              and build an examination.
+            </p>
+
+          </div>
+
+        </div>
+
+
+
+        <div class="home-feature-card">
+
+          <span class="feature-index">
+            02
+          </span>
+
+          <div>
+
+            <strong>
+              Conduct
+            </strong>
+
+            <p>
+              Let students take secure
+              OMR-based examinations.
+            </p>
+
+          </div>
+
+        </div>
+
+
+
+        <div class="home-feature-card">
+
+          <span class="feature-index">
+            03
+          </span>
+
+          <div>
+
+            <strong>
+              Evaluate
+            </strong>
+
+            <p>
+              Check answers, marks and
+              performance instantly.
+            </p>
+
+          </div>
+
+        </div>
+
+
+      </div>
+
+
     </section>
+
 
 
     <!-- ===================================================
@@ -244,6 +591,7 @@
     >
 
       <div class="card">
+
 
         <div class="section-header">
 
@@ -258,170 +606,606 @@
             </h2>
 
             <p>
-              Upload the question paper and configure
-              your examination.
+              Choose how you want to create your examination.
+            </p>
+
+          </div>
+</div>
+
+
+
+        <!-- =================================================
+             CREATE MODE SELECTOR
+             ================================================= -->
+
+        <div
+          class="create-mode-selector"
+          id="createModeSelector"
+        >
+
+          <button
+            id="createModePdfBtn"
+            class="create-mode-btn active"
+            type="button"
+            data-mode="pdf"
+          >
+
+            <span class="create-mode-icon">
+              PDF
+            </span>
+
+            <strong>
+              Upload PDF
+            </strong>
+
+            <small>
+              Use an existing question paper PDF.
+            </small>
+
+          </button>
+
+
+          <button
+            id="createModeTypeBtn"
+            class="create-mode-btn"
+            type="button"
+            data-mode="type"
+          >
+
+            <span class="create-mode-icon">
+              T
+            </span>
+
+            <strong>
+              Type Questions
+            </strong>
+
+            <small>
+              Create questions and options manually.
+            </small>
+
+          </button>
+
+
+          <button
+            id="createModeAiBtn"
+            class="create-mode-btn"
+            type="button"
+            data-mode="ai"
+          >
+
+            <span class="create-mode-icon">
+              ✦
+            </span>
+
+            <strong>
+              Create with AI
+            </strong>
+
+            <small>
+              Generate questions with AI.
+            </small>
+
+          </button>
+
+        </div>
+
+
+
+        <!-- =================================================
+             PDF MODE
+             ================================================= -->
+
+        <div
+          id="pdfCreateMode"
+          class="create-mode-panel"
+        >
+
+          <label for="testName">
+            Test Name
+          </label>
+
+          <input
+            id="testName"
+            type="text"
+            placeholder="E.g. Physics Test 1"
+            autocomplete="off"
+          >
+
+
+
+          <label for="pdfFile">
+            Question Paper PDF
+          </label>
+
+          <input
+            id="pdfFile"
+            type="file"
+            accept="application/pdf,.pdf"
+          >
+
+
+          <div
+            id="pdfStatus"
+            class="file-status"
+          ></div>
+
+
+
+          <div
+            id="pdfPreviewBox"
+            class="pdf-preview hidden"
+          >
+
+            <iframe
+              id="pdfPreview"
+              title="Question Paper Preview"
+            ></iframe>
+
+          </div>
+
+
+
+          <div class="form-grid">
+
+
+            <div>
+
+              <label for="questionCount">
+                Total Questions
+              </label>
+
+              <input
+                id="questionCount"
+                type="number"
+                min="1"
+                max="300"
+                value="40"
+              >
+
+            </div>
+
+
+
+            <div>
+
+              <label for="defaultOptions">
+                Default Options
+              </label>
+
+              <select
+                id="defaultOptions"
+              >
+
+                <option value="4">
+                  4 Options
+                </option>
+
+                <option value="2">
+                  2 Options
+                </option>
+
+              </select>
+
+            </div>
+
+
+
+            <div>
+
+              <label for="durationMinutes">
+                Exam Duration
+              </label>
+
+              <select
+                id="durationMinutes"
+              >
+
+                <option value="0">
+                  No Timer
+                </option>
+
+                <option value="15">
+                  15 Minutes
+                </option>
+
+                <option value="30">
+                  30 Minutes
+                </option>
+
+                <option value="45">
+                  45 Minutes
+                </option>
+
+                <option
+                  value="60"
+                  selected
+                >
+                  60 Minutes
+                </option>
+
+                <option value="90">
+                  90 Minutes
+                </option>
+
+                <option value="120">
+                  120 Minutes
+                </option>
+
+                <option value="180">
+                  180 Minutes
+                </option>
+
+              </select>
+
+            </div>
+
+
+          </div>
+
+
+
+          <h3 class="sub-heading">
+            Question Options
+          </h3>
+
+
+          <p class="hint">
+            Choose the number of options available
+            for each question.
+          </p>
+
+
+
+          <div
+            id="optionSettings"
+            class="option-settings"
+          ></div>
+
+
+
+          <div class="actions">
+
+
+            <button
+              id="generateBtn"
+              class="primary-btn"
+              type="button"
+            >
+              Generate OMR
+            </button>
+
+
+            <button
+              id="clearCreateBtn"
+              class="secondary-btn"
+              type="button"
+            >
+              Clear
+            </button>
+
+
+          </div>
+
+        </div>
+
+
+
+        <!-- =================================================
+             TYPE QUESTIONS MODE
+             ================================================= -->
+
+        <div
+          id="typeCreateMode"
+          class="create-mode-panel hidden"
+        >
+
+          <div class="section-eyebrow">
+            MANUAL QUESTION BUILDER
+          </div>
+
+          <h3 class="sub-heading">
+            Type Your Questions
+          </h3>
+
+          <p class="hint">
+            Write each question, add its options and select the
+            correct answer. This mode will use the same
+            examination and OMR system.
+          </p>
+
+
+          <div class="form-grid">
+
+            <div>
+
+              <label for="typedTestName">
+                Test Name
+              </label>
+
+              <input
+                id="typedTestName"
+                type="text"
+                placeholder="E.g. English Test 1"
+                autocomplete="off"
+              >
+
+            </div>
+
+
+            <div>
+
+              <label for="typedQuestionCount">
+                Total Questions
+              </label>
+
+              <input
+                id="typedQuestionCount"
+                type="number"
+                min="1"
+                max="300"
+                value="10"
+              >
+
+            </div>
+
+
+            <div>
+
+              <label for="typedDefaultOptions">
+                Default Options
+              </label>
+
+              <select
+                id="typedDefaultOptions"
+              >
+
+                <option value="4">
+                  4 Options
+                </option>
+
+                <option value="2">
+                  2 Options
+                </option>
+
+              </select>
+
+            </div>
+
+
+            <div>
+
+              <label for="typedDurationMinutes">
+                Exam Duration
+              </label>
+
+              <select
+                id="typedDurationMinutes"
+              >
+
+                <option value="0">
+                  No Timer
+                </option>
+
+                <option value="15">
+                  15 Minutes
+                </option>
+
+                <option value="30">
+                  30 Minutes
+                </option>
+
+                <option value="45">
+                  45 Minutes
+                </option>
+
+                <option value="60" selected>
+                  60 Minutes
+                </option>
+
+                <option value="90">
+                  90 Minutes
+                </option>
+
+                <option value="120">
+                  120 Minutes
+                </option>
+
+                <option value="180">
+                  180 Minutes
+                </option>
+
+              </select>
+
+            </div>
+
+          </div>
+
+
+          <div
+            id="typedQuestionsContainer"
+            class="typed-questions-container"
+          ></div>
+
+
+          <div class="actions">
+
+            <button
+              id="generateTypedTestBtn"
+              class="primary-btn"
+              type="button"
+            >
+              Create Test
+            </button>
+
+            <button
+              id="clearTypedQuestionsBtn"
+              class="secondary-btn"
+              type="button"
+            >
+              Clear
+            </button>
+
+          </div>
+
+        </div>
+
+
+
+        <!-- =================================================
+             AI MODE
+             ================================================= -->
+
+        <div
+          id="aiCreateMode"
+          class="create-mode-panel hidden"
+        >
+
+          <div class="ai-coming-soon">
+
+            <div class="ai-coming-soon-icon">
+              ✦
+            </div>
+
+            <strong>
+              AI Question Generator
+            </strong>
+
+            <p>
+              AI-powered question generation will be connected
+              in the next stage. The interface is ready, and the
+              AI generation function will be added later.
             </p>
 
           </div>
 
 
-          <button
-            id="backHomeFromCreate"
-            class="small-btn secondary-btn"
-            type="button"
-          >
-            ← Back
-          </button>
+          <div class="form-grid">
 
-        </div>
+            <div>
 
+              <label for="aiTestName">
+                Test Name
+              </label>
 
-        <label for="testName">
-          Test Name
-        </label>
+              <input
+                id="aiTestName"
+                type="text"
+                placeholder="E.g. Biology Chapter Test"
+                autocomplete="off"
+              >
 
-        <input
-          id="testName"
-          type="text"
-          placeholder="E.g. Physics Test 1"
-          autocomplete="off"
-        >
+            </div>
 
 
-        <label for="pdfFile">
-          Question Paper PDF
-        </label>
+            <div>
 
-        <input
-          id="pdfFile"
-          type="file"
-          accept="application/pdf,.pdf"
-        >
+              <label for="aiQuestionCount">
+                Total Questions
+              </label>
 
+              <input
+                id="aiQuestionCount"
+                type="number"
+                min="1"
+                max="300"
+                value="10"
+              >
 
-        <div
-          id="pdfStatus"
-          class="file-status"
-        ></div>
-
-
-        <div
-          id="pdfPreviewBox"
-          class="pdf-preview hidden"
-        >
-
-          <iframe
-            id="pdfPreview"
-            title="Question Paper Preview"
-          ></iframe>
-
-        </div>
+            </div>
 
 
-        <div class="form-grid">
+            <div>
 
-          <div>
+              <label for="aiDefaultOptions">
+                Options
+              </label>
 
-            <label for="questionCount">
-              Total Questions
-            </label>
+              <select
+                id="aiDefaultOptions"
+              >
 
-            <input
-              id="questionCount"
-              type="number"
-              min="1"
-              max="300"
-              value="40"
+                <option value="4">
+                  4 Options
+                </option>
+
+                <option value="2">
+                  2 Options
+                </option>
+
+              </select>
+
+            </div>
+
+
+            <div>
+
+              <label for="aiDurationMinutes">
+                Exam Duration
+              </label>
+
+              <select
+                id="aiDurationMinutes"
+              >
+
+                <option value="0">
+                  No Timer
+                </option>
+
+                <option value="15">
+                  15 Minutes
+                </option>
+
+                <option value="30">
+                  30 Minutes
+                </option>
+
+                <option value="45">
+                  45 Minutes
+                </option>
+
+                <option value="60" selected>
+                  60 Minutes
+                </option>
+
+                <option value="90">
+                  90 Minutes
+                </option>
+
+                <option value="120">
+                  120 Minutes
+                </option>
+
+                <option value="180">
+                  180 Minutes
+                </option>
+
+              </select>
+
+            </div>
+
+          </div>
+
+
+          <div class="actions">
+
+            <button
+              id="createWithAiBtn"
+              class="primary-btn"
+              type="button"
             >
+              Create with AI
+            </button>
 
           </div>
-
-
-          <div>
-
-            <label for="defaultOptions">
-              Default Options
-            </label>
-
-            <select
-              id="defaultOptions"
-            >
-
-              <option value="4">
-                4 Options
-              </option>
-
-              <option value="2">
-                2 Options
-              </option>
-
-            </select>
-
-          </div>
-
-          <div>
-
-            <label for="durationMinutes">
-              Exam Duration
-            </label>
-
-            <select id="durationMinutes">
-              <option value="0">No Timer</option>
-              <option value="15">15 Minutes</option>
-              <option value="30">30 Minutes</option>
-              <option value="45">45 Minutes</option>
-              <option value="60" selected>60 Minutes</option>
-              <option value="90">90 Minutes</option>
-              <option value="120">120 Minutes</option>
-              <option value="180">180 Minutes</option>
-            </select>
-
-          </div>
-
 
         </div>
 
-
-        <h3 class="sub-heading">
-          Question Options
-        </h3>
-
-        <p class="hint">
-          Choose the number of options available
-          for each question.
-        </p>
-
-
-        <div
-          id="optionSettings"
-          class="option-settings"
-        ></div>
-
-
-        <div class="actions">
-
-          <button
-            id="generateBtn"
-            class="primary-btn"
-            type="button"
-          >
-            Generate OMR
-          </button>
-
-
-          <button
-            id="clearCreateBtn"
-            class="secondary-btn"
-            type="button"
-          >
-            Clear
-          </button>
-
-        </div>
 
       </div>
 
     </section>
+
 
 
     <!-- ===================================================
@@ -434,6 +1218,7 @@
     >
 
       <div class="card">
+
 
         <div class="section-header">
 
@@ -456,32 +1241,63 @@
         </div>
 
 
+
         <div class="quick-key-card">
 
           <div class="quick-key-header">
-            <strong>Quick Answer Key</strong>
-            <span>Paste the key instead of selecting answers one by one.</span>
+
+            <strong>
+              Quick Answer Key
+            </strong>
+
+            <span>
+              Paste the key instead of selecting
+              answers one by one.
+            </span>
+
           </div>
+
 
           <textarea
             id="quickAnswerKey"
             class="quick-key-input"
             rows="3"
-            placeholder="A C B D A B C D ...&#10;or&#10;1-A 2-C 3-B 4-D ..."
+            placeholder="A C B D A B C D ...
+or
+1-A 2-C 3-B 4-D ..."
           ></textarea>
 
+
           <div class="quick-key-actions">
-            <button id="applyQuickKeyBtn" class="secondary-btn" type="button">
+
+            <button
+              id="applyQuickKeyBtn"
+              class="secondary-btn"
+              type="button"
+            >
               Apply Answer Key
             </button>
-            <button id="clearQuickKeyBtn" class="small-btn secondary-btn" type="button">
+
+
+            <button
+              id="clearQuickKeyBtn"
+              class="small-btn secondary-btn"
+              type="button"
+            >
               Clear
             </button>
+
           </div>
 
-          <div id="quickKeyStatus" class="status-box hidden"></div>
+
+          <div
+            id="quickKeyStatus"
+            class="status-box hidden"
+          ></div>
 
         </div>
+
+
 
         <div
           id="answerKeyGrid"
@@ -489,7 +1305,9 @@
         ></div>
 
 
+
         <div class="form-grid marks-grid">
+
 
           <div>
 
@@ -507,6 +1325,7 @@
           </div>
 
 
+
           <div>
 
             <label for="wrongMark">
@@ -522,10 +1341,13 @@
 
           </div>
 
+
         </div>
 
 
+
         <div class="actions">
+
 
           <button
             id="saveTestBtn"
@@ -544,7 +1366,9 @@
             ← Back
           </button>
 
+
         </div>
+
 
 
         <div
@@ -552,9 +1376,11 @@
           class="status-box hidden"
         ></div>
 
+
       </div>
 
     </section>
+
 
 
     <!-- ===================================================
@@ -567,6 +1393,7 @@
     >
 
       <div class="card success-card">
+
 
         <div class="success-icon">
           ✓
@@ -588,6 +1415,7 @@
         </p>
 
 
+
         <div class="test-code-box">
 
           <span>
@@ -601,7 +1429,9 @@
         </div>
 
 
+
         <div class="actions">
+
 
           <button
             id="copyCodeBtn"
@@ -620,11 +1450,14 @@
             Back to Home
           </button>
 
+
         </div>
+
 
       </div>
 
     </section>
+
 
 
     <!-- ===================================================
@@ -638,6 +1471,7 @@
 
       <div class="card join-card">
 
+
         <button
           id="backHomeFromJoin"
           class="small-btn secondary-btn"
@@ -647,9 +1481,11 @@
         </button>
 
 
+
         <div class="join-icon">
-          →
+          ↗
         </div>
+
 
 
         <div class="section-eyebrow">
@@ -668,6 +1504,7 @@
         </p>
 
 
+
         <label for="joinCode">
           Test Code
         </label>
@@ -684,7 +1521,9 @@
         >
 
 
+
         <div class="actions">
+
 
           <button
             id="joinBtn"
@@ -694,7 +1533,9 @@
             Enter Examination →
           </button>
 
+
         </div>
+
 
 
         <div
@@ -702,9 +1543,11 @@
           class="status-box hidden"
         ></div>
 
+
       </div>
 
     </section>
+
 
 
     <!-- ===================================================
@@ -718,6 +1561,7 @@
 
       <div class="card result-check-card">
 
+
         <button
           id="backHomeFromResult"
           class="small-btn secondary-btn"
@@ -726,21 +1570,35 @@
           ← Back
         </button>
 
-        <div class="join-icon result-check-icon">✓</div>
+
+
+        <div class="join-icon result-check-icon">
+          ✓
+        </div>
+
+
 
         <div class="section-eyebrow">
           RESULT CENTER
         </div>
 
-        <h2>Check Your Result</h2>
+
+        <h2>
+          Check Your Result
+        </h2>
+
 
         <p>
-          Enter the test code to view the latest submitted result.
+          Enter the test code to view the latest
+          submitted result.
         </p>
+
+
 
         <label for="resultCode">
           Test Code
         </label>
+
 
         <input
           id="resultCode"
@@ -752,7 +1610,10 @@
           spellcheck="false"
         >
 
+
+
         <div class="actions">
+
 
           <button
             id="checkResultBtn"
@@ -762,15 +1623,27 @@
             Check Result →
           </button>
 
+
         </div>
 
-        <div id="resultStatus" class="status-box hidden"></div>
 
-        <div id="singleResultBox" class="result-box hidden"></div>
+
+        <div
+          id="resultStatus"
+          class="status-box hidden"
+        ></div>
+
+
+        <div
+          id="singleResultBox"
+          class="result-box hidden"
+        ></div>
+
 
       </div>
 
     </section>
+
 
 
     <!-- ===================================================
@@ -785,15 +1658,18 @@
 
       <div class="exam-header card">
 
+
         <div>
 
           <div class="section-eyebrow">
             LIVE EXAMINATION
           </div>
 
+
           <h2 id="examName">
             Exam
           </h2>
+
 
           <p id="examInfo">
             Question Paper + OMR
@@ -801,10 +1677,24 @@
 
         </div>
 
-        <div id="examTimer" class="exam-timer hidden" aria-live="polite">
-          <span class="timer-label">TIME LEFT</span>
-          <strong id="examTimerValue">--:--</strong>
+
+
+        <div
+          id="examTimer"
+          class="exam-timer hidden"
+          aria-live="polite"
+        >
+
+          <span class="timer-label">
+            TIME LEFT
+          </span>
+
+          <strong id="examTimerValue">
+            --:--
+          </strong>
+
         </div>
+
 
 
         <button
@@ -815,15 +1705,20 @@
           Exit
         </button>
 
+
       </div>
+
 
 
       <div class="exam-workspace">
 
 
-        <!-- PDF -->
+        <!-- =================================================
+             PDF VIEWER
+             ================================================= -->
 
         <div class="card pdf-card">
+
 
           <div class="pdf-card-header">
 
@@ -833,9 +1728,11 @@
                 QUESTION PAPER
               </div>
 
+
               <h3>
                 Question Paper
               </h3>
+
 
               <p>
                 Use the controls below to navigate and zoom.
@@ -846,10 +1743,12 @@
           </div>
 
 
+
           <div
             id="pdfViewerMount"
             class="pdf-viewer-mount"
           ></div>
+
 
 
           <div class="pdf-footer">
@@ -871,14 +1770,20 @@
 
           </div>
 
+
         </div>
 
 
-        <!-- OMR -->
+
+        <!-- =================================================
+             OMR ANSWER SHEET
+             ================================================= -->
 
         <div class="card omr-card">
 
+
           <div class="omr-header">
+
 
             <div>
 
@@ -886,15 +1791,18 @@
                 ANSWER SHEET
               </div>
 
+
               <h3>
                 OMR Answer Sheet
               </h3>
+
 
               <p>
                 Select one answer for each question.
               </p>
 
             </div>
+
 
 
             <span
@@ -904,7 +1812,9 @@
               0 / 0
             </span>
 
+
           </div>
+
 
 
           <div class="candidate-field">
@@ -912,6 +1822,7 @@
             <label for="candidateName">
               Candidate Name
             </label>
+
 
             <input
               id="candidateName"
@@ -923,6 +1834,7 @@
           </div>
 
 
+
           <div class="progress-bar">
 
             <div
@@ -932,13 +1844,78 @@
           </div>
 
 
+
+          <!-- =================================================
+               PDF EXAM QUESTION NAVIGATOR
+               Top: horizontally scrollable 10-question ranges
+               Bottom: previous / next range navigation
+               Hidden completely for Text Based exams.
+               ================================================= -->
+
+          <div
+            id="questionNavigator"
+            class="question-navigator"
+            aria-label="Question navigation"
+          >
+            <div class="question-nav-header">
+              <div>
+                <span class="question-nav-label">QUESTIONS</span>
+                <span id="questionNavCurrent" class="question-nav-current">1–10</span>
+              </div>
+              <span id="questionNavTotal" class="question-nav-total">0 Questions</span>
+            </div>
+
+            <div class="question-nav-scroll" id="questionNavScroll">
+              <div
+                id="questionNavGrid"
+                class="question-nav-grid"
+                role="navigation"
+                aria-label="Question ranges"
+              ></div>
+            </div>
+          </div>
+
+
           <div
             id="examGrid"
             class="exam-grid"
           ></div>
 
 
+          <div
+            id="examPageNavigation"
+            class="exam-page-navigation"
+          >
+            <button
+              id="examPagePrevBtn"
+              class="secondary-btn small-btn"
+              type="button"
+              aria-label="Previous question range"
+            >
+              ← Previous
+            </button>
+
+            <span
+              id="examPageIndicator"
+              class="exam-page-indicator"
+            >
+              1–10
+            </span>
+
+            <button
+              id="examPageNextBtn"
+              class="primary-btn small-btn"
+              type="button"
+              aria-label="Next question range"
+            >
+              Next →
+            </button>
+          </div>
+
+
+
           <div class="exam-actions">
+
 
             <button
               id="submitExamBtn"
@@ -957,7 +1934,9 @@
               Clear Answers
             </button>
 
+
           </div>
+
 
 
           <div
@@ -965,11 +1944,15 @@
             class="result-box hidden"
           ></div>
 
+
         </div>
+
 
       </div>
 
+
     </section>
+
 
 
     <!-- ===================================================
@@ -999,6 +1982,7 @@
   </main>
 
 
+
   <!-- =====================================================
        SUPABASE
        ===================================================== -->
@@ -1008,13 +1992,13 @@
   ></script>
 
 
+
   <!-- =====================================================
        MAIN SCRIPT
        ===================================================== -->
 
-  <script
-    src="script.js"
-  ></script>
+  <script src="script.js"></script>
+<script src="type-creator.js"></script>
 
 </body>
 

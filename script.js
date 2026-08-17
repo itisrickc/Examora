@@ -20,9 +20,11 @@ const supabaseClient =
    CONFIG
    ========================================================= */
 
-const STORAGE_BUCKET = "question-papers";
+const STORAGE_BUCKET =
+  "question-papers";
 
-const PDFJS_VERSION = "4.10.38";
+const PDFJS_VERSION =
+  "4.10.38";
 
 const PDFJS_URL =
   `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.min.mjs`;
@@ -30,24 +32,39 @@ const PDFJS_URL =
 const PDFJS_WORKER =
   `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.worker.min.mjs`;
 
-const OPTION_LABELS = ["A", "B", "C", "D"];
+const OPTION_LABELS =
+  ["A", "B", "C", "D"];
+
+
 /* =========================================================
    PDF.JS LOADER
    ========================================================= */
 
 async function loadPdfJs() {
+
   if (pdfModule) {
     return pdfModule;
   }
 
-  pdfModule = await import(PDFJS_URL);
+  pdfModule =
+    await import(
+      PDFJS_URL
+    );
 
-  if (pdfModule && pdfModule.GlobalWorkerOptions) {
-    pdfModule.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+  if (
+    pdfModule &&
+    pdfModule.GlobalWorkerOptions
+  ) {
+
+    pdfModule
+      .GlobalWorkerOptions
+      .workerSrc =
+      PDFJS_WORKER;
   }
 
   return pdfModule;
 }
+
 
 /* =========================================================
    STATE
@@ -70,6 +87,9 @@ let currentPdfDocument = null;
 let currentPdfPage = 1;
 
 let currentPdfScale = 1;
+let currentExamPage = 0;
+const QUESTIONS_PER_PAGE = 10;
+let pdfPageCanvases = [];
 
 let pdfModule = null;
 
@@ -78,6 +98,13 @@ let timerInterval = null;
 let remainingSeconds = 0;
 
 let examSubmitted = false;
+
+
+/*
+ * Typed question state
+ */
+
+let currentTypedQuestions = [];
 
 
 /* =========================================================
@@ -94,81 +121,170 @@ function $(id) {
    ========================================================= */
 
 function show(element) {
+
   if (element) {
-    element.classList.remove("hidden");
+    element.classList.remove(
+      "hidden"
+    );
   }
+
 }
+
 
 function hide(element) {
+
   if (element) {
-    element.classList.add("hidden");
+    element.classList.add(
+      "hidden"
+    );
   }
+
 }
 
+
 function showScreen(id) {
+
   document
     .querySelectorAll(".screen")
-    .forEach((screen) => {
-      screen.classList.add("hidden");
-    });
+    .forEach(
+      screen => {
 
-  const screen = $(id);
+        screen.classList.add(
+          "hidden"
+        );
+
+      }
+    );
+
+  const screen =
+    $(id);
 
   if (screen) {
-    screen.classList.remove("hidden");
+
+    screen.classList.remove(
+      "hidden"
+    );
+
   }
 
   window.scrollTo({
     top: 0,
     behavior: "smooth"
   });
+
 }
 
-function setLoading(active, message) {
-  const overlay = $("loadingOverlay");
-  const text = $("loadingText");
 
-  if (text && message) {
-    text.textContent = message;
+function escapeHtml(value) {
+
+  return String(
+    value ?? ""
+  )
+    .replace(
+      /&/g,
+      "&amp;"
+    )
+    .replace(
+      /</g,
+      "&lt;"
+    )
+    .replace(
+      />/g,
+      "&gt;"
+    )
+    .replace(
+      /"/g,
+      "&quot;"
+    )
+    .replace(
+      /'/g,
+      "&#039;"
+    );
+
+}
+
+
+function setLoading(
+  active,
+  text = "Please wait..."
+) {
+
+  const overlay =
+    $("loadingOverlay");
+
+  const loadingText =
+    $("loadingText");
+
+  if (loadingText) {
+
+    loadingText.textContent =
+      text;
+
   }
 
   if (active) {
-    show(overlay);
+
+    show(
+      overlay
+    );
+
   } else {
-    hide(overlay);
+
+    hide(
+      overlay
+    );
+
   }
+
 }
 
-function statusBox(element, message, type) {
-  if (!element) return;
 
-  element.textContent = message;
+function statusBox(
+  element,
+  message,
+  type = ""
+) {
+
+  if (!element) {
+    return;
+  }
+
+  element.textContent =
+    message;
 
   element.className =
     "status-box";
 
   if (type) {
-    element.classList.add(type);
+
+    element.classList.add(
+      type
+    );
+
   }
 
-  show(element);
+  show(
+    element
+  );
+
 }
 
-function clearStatus(element) {
-  hide(element);
 
-  if (element) {
-    element.textContent = "";
+function clearStatus(
+  element
+) {
+
+  if (!element) {
+    return;
   }
-}
 
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+  element.textContent =
+    "";
+
+  hide(
+    element
+  );
+
 }
 
 
@@ -176,17 +292,17 @@ function escapeHtml(value) {
    OPTION HELPERS
    ========================================================= */
 
-function normalizeOptionCount(value) {
-  return Number(value) === 2
-    ? 2
-    : 4;
-}
+function getOptionLabels(
+  count
+) {
 
-function getOptionLabels(count) {
   return OPTION_LABELS.slice(
     0,
-    normalizeOptionCount(count)
+    Number(count) === 2
+      ? 2
+      : 4
   );
+
 }
 
 
@@ -194,63 +310,91 @@ function getOptionLabels(count) {
    TEST CODE
    ========================================================= */
 
-function generateTestCode() {
+function randomCode() {
+
   const chars =
     "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
-  let result = "";
+  let code = "";
 
-  for (let i = 0; i < 6; i++) {
-    result +=
+  for (
+    let i = 0;
+    i < 6;
+    i++
+  ) {
+
+    code +=
       chars[
         Math.floor(
           Math.random() *
           chars.length
         )
       ];
+
   }
 
-  return result;
+  return code;
 }
 
-async function generateUniqueTestCode() {
-  for (let i = 0; i < 15; i++) {
+
+async function uniqueCode() {
+
+  for (
+    let attempt = 0;
+    attempt < 10;
+    attempt++
+  ) {
+
     const code =
-      generateTestCode();
+      randomCode();
 
     const {
       data,
       error
-    } = await supabaseClient
-      .from("tests")
-      .select("id")
-      .eq("code", code)
-      .limit(1);
+    } =
+      await supabaseClient
+        .from("tests")
+        .select("id")
+        .eq(
+          "code",
+          code
+        )
+        .limit(1);
 
     if (error) {
       throw error;
     }
 
-    if (!data || data.length === 0) {
+    if (
+      !data ||
+      data.length === 0
+    ) {
+
       return code;
+
     }
+
   }
 
   throw new Error(
     "Could not generate a unique test code."
   );
+
 }
 
 
 /* =========================================================
-   OPTION SETTINGS
+   CREATE TEST — OPTION SETTINGS
    ========================================================= */
 
 function renderOptionSettings() {
-  const container =
+
+  const box =
     $("optionSettings");
 
-  if (!container) return;
+  if (!box) {
+    return;
+  }
 
   const count =
     Math.max(
@@ -258,108 +402,220 @@ function renderOptionSettings() {
       Math.min(
         300,
         Number(
-          $("questionCount")?.value
+          $("questionCount")
+            ?.value
         ) || 40
       )
     );
 
   const defaultOptions =
-    normalizeOptionCount(
-      $("defaultOptions")?.value
+    Number(
+      $("defaultOptions")
+        ?.value
+    ) === 2
+      ? 2
+      : 4;
+
+  currentQuestionCount =
+    count;
+
+  box.innerHTML =
+    "";
+
+  for (
+    let i = 0;
+    i < count;
+    i++
+  ) {
+
+    box.insertAdjacentHTML(
+      "beforeend",
+      `
+        <div class="option-setting">
+
+          <div class="option-setting-number">
+            ${i + 1}
+          </div>
+
+          <select
+            class="question-option-count"
+            data-question="${i}"
+          >
+
+            <option
+              value="4"
+              ${defaultOptions === 4
+                ? "selected"
+                : ""}
+            >
+              4 Options
+            </option>
+
+            <option
+              value="2"
+              ${defaultOptions === 2
+                ? "selected"
+                : ""}
+            >
+              2 Options
+            </option>
+
+          </select>
+
+        </div>
+      `
     );
 
-  container.innerHTML = "";
-
-  for (let i = 0; i < count; i++) {
-    const item =
-      document.createElement("div");
-
-    item.className =
-      "option-setting";
-
-    item.innerHTML = `
-      <div class="option-setting-number">
-        ${i + 1}
-      </div>
-
-      <select
-        class="question-option-count"
-        data-question="${i}"
-      >
-        <option
-          value="4"
-          ${
-            defaultOptions === 4
-              ? "selected"
-              : ""
-          }
-        >
-          4 Options
-        </option>
-
-        <option
-          value="2"
-          ${
-            defaultOptions === 2
-              ? "selected"
-              : ""
-          }
-        >
-          2 Options
-        </option>
-      </select>
-    `;
-
-    container.appendChild(item);
   }
+
 }
 
-function collectQuestionOptions() {
-  return Array.from(
-    document.querySelectorAll(
+
+function getQuestionOptions() {
+
+  return [
+    ...document.querySelectorAll(
       ".question-option-count"
     )
-  ).map(
-    (select) =>
-      normalizeOptionCount(
+  ].map(
+    select =>
+      Number(
         select.value
-      )
+      ) === 2
+        ? 2
+        : 4
   );
+
 }
+
+
+/* =========================================================
+   PDF FILE SELECTION
+   ========================================================= */
+
+$("pdfFile")
+  ?.addEventListener(
+    "change",
+    event => {
+
+      const file =
+        event.target
+          ?.files?.[0];
+
+      const status =
+        $("pdfStatus");
+
+      const previewBox =
+        $("pdfPreviewBox");
+
+      const preview =
+        $("pdfPreview");
+
+      hide(
+        previewBox
+      );
+
+      if (!file) {
+
+        if (status) {
+          status.textContent =
+            "";
+        }
+
+        return;
+      }
+
+      if (
+        file.type !==
+        "application/pdf"
+      ) {
+
+        event.target.value =
+          "";
+
+        if (status) {
+
+          status.textContent =
+            "Please select a PDF file.";
+
+          status.style.color =
+            "#dc2626";
+
+        }
+
+        return;
+      }
+
+      const url =
+        URL.createObjectURL(
+          file
+        );
+
+      if (preview) {
+        preview.src =
+          url;
+      }
+
+      show(
+        previewBox
+      );
+
+      if (status) {
+
+        status.textContent =
+          `${file.name} selected.`;
+
+        status.style.color =
+          "#16a34a";
+
+      }
+
+    }
+  );
 
 
 /* =========================================================
    PDF UPLOAD
    ========================================================= */
 
-async function uploadQuestionPaper(
+async function uploadPdf(
   file,
   code
 ) {
+
   if (!file) {
+
     throw new Error(
-      "Please select a PDF."
+      "Please select a question paper PDF."
     );
+
   }
 
-  const fileName =
+  const name =
     `${code}-${Date.now()}.pdf`;
 
   const {
     error
-  } = await supabaseClient
-    .storage
-    .from(STORAGE_BUCKET)
-    .upload(
-      fileName,
-      file,
-      {
-        cacheControl: "3600",
-        upsert: false,
-        contentType:
-          "application/pdf"
-      }
-    );
+  } =
+    await supabaseClient
+      .storage
+      .from(
+        STORAGE_BUCKET
+      )
+      .upload(
+        name,
+        file,
+        {
+          cacheControl:
+            "3600",
+
+          upsert:
+            false,
+
+          contentType:
+            "application/pdf"
+        }
+      );
 
   if (error) {
     throw error;
@@ -367,83 +623,29 @@ async function uploadQuestionPaper(
 
   const {
     data
-  } = supabaseClient
-    .storage
-    .from(STORAGE_BUCKET)
-    .getPublicUrl(
-      fileName
-    );
+  } =
+    supabaseClient
+      .storage
+      .from(
+        STORAGE_BUCKET
+      )
+      .getPublicUrl(
+        name
+      );
 
-  if (!data?.publicUrl) {
+  if (
+    !data?.publicUrl
+  ) {
+
     throw new Error(
       "Could not create PDF URL."
     );
+
   }
 
   return data.publicUrl;
+
 }
-
-
-/* =========================================================
-   PDF FILE INPUT
-   ========================================================= */
-
-$("pdfFile")?.addEventListener(
-  "change",
-  (event) => {
-    const file =
-      event.target.files?.[0];
-
-    const status =
-      $("pdfStatus");
-
-    const previewBox =
-      $("pdfPreviewBox");
-
-    const preview =
-      $("pdfPreview");
-
-    if (!file) {
-      hide(previewBox);
-
-      if (status) {
-        status.textContent = "";
-      }
-
-      return;
-    }
-
-    if (
-      file.type !==
-      "application/pdf"
-    ) {
-      event.target.value = "";
-
-      statusBox(
-        status,
-        "Please select a PDF file.",
-        "error"
-      );
-
-      return;
-    }
-
-    if (preview) {
-      preview.src =
-        URL.createObjectURL(file);
-    }
-
-    show(previewBox);
-
-    if (status) {
-      status.textContent =
-        `${file.name} selected.`;
-
-      status.style.color =
-        "#16a34a";
-    }
-  }
-);
 
 
 /* =========================================================
@@ -451,479 +653,352 @@ $("pdfFile")?.addEventListener(
    ========================================================= */
 
 function renderAnswerKey() {
-  const container =
+
+  const box =
     $("answerKeyGrid");
 
-  if (!container) return;
+  if (!box) {
+    return;
+  }
 
-  container.innerHTML = "";
-
-  currentAnswerKey =
-    new Array(
-      currentQuestionCount
-    ).fill("");
+  box.innerHTML =
+    "";
 
   for (
     let i = 0;
     i < currentQuestionCount;
     i++
   ) {
-    const item =
-      document.createElement("div");
-
-    item.className =
-      "answer-key-item";
-
-    const title =
-      document.createElement("strong");
-
-    title.textContent =
-      `Question ${i + 1}`;
-
-    const select =
-      document.createElement("select");
-
-    select.className =
-      "answer-key-select";
-
-    select.dataset.question =
-      String(i);
 
     const labels =
       getOptionLabels(
         currentOptions[i] || 4
       );
 
-    select.innerHTML =
-      `<option value="">
-        Select
-      </option>` +
-      labels
-        .map(
-          (label) =>
-            `<option value="${label}">
-              ${label}
-            </option>`
-        )
-        .join("");
+    box.insertAdjacentHTML(
+      "beforeend",
+      `
+        <div class="answer-key-item">
 
-    select.addEventListener(
-      "change",
-      () => {
-        currentAnswerKey[i] =
-          select.value;
-      }
+          <strong>
+            Question ${i + 1}
+          </strong>
+
+          <select
+            class="answer-key-select"
+            data-question="${i}"
+          >
+
+            <option value="">
+              Select
+            </option>
+
+            ${labels
+              .map(
+                label =>
+                  `
+                    <option value="${label}">
+                      ${label}
+                    </option>
+                  `
+              )
+              .join("")}
+
+          </select>
+
+        </div>
+      `
     );
 
-    item.appendChild(title);
-    item.appendChild(select);
-
-    container.appendChild(item);
   }
+
 }
 
-function collectAnswerKey() {
-  return Array.from(
-    document.querySelectorAll(
+
+function getAnswerKey() {
+
+  return [
+    ...document.querySelectorAll(
       ".answer-key-select"
     )
-  ).map(
-    (select) =>
+  ].map(
+    select =>
       select.value
   );
+
 }
 
 
 /* =========================================================
-   QUICK ANSWER KEY
+   CREATE PDF TEST
    ========================================================= */
 
-function parseQuickAnswerKey(text) {
-  const input =
-    String(text || "")
-      .trim()
-      .toUpperCase();
+$("generateBtn")
+  ?.addEventListener(
+    "click",
+    async () => {
 
-  if (!input) {
-    return [];
-  }
-
-  const result = [];
-
-  /*
-    Supports:
-
-    A B C D A B
-    A,C,B,D
-    1-A 2-C 3-B
-    1:A 2:C 3:B
-    Q1-A Q2-C
-  */
-
-  const numbered =
-    /(?:Q)?(\d+)\s*[-:=]\s*([ABCD])/g;
-
-  let match;
-
-  while (
-    (match =
-      numbered.exec(input)) !== null
-  ) {
-    result[
-      Number(match[1]) - 1
-    ] =
-      match[2];
-  }
-
-  if (
-    result.length === 0
-  ) {
-    const letters =
-      input.match(
-        /[ABCD]/g
-      ) || [];
-
-    return letters;
-  }
-
-  return result;
-}
-
-$("applyQuickKeyBtn")?.addEventListener(
-  "click",
-  () => {
-    const status =
-      $("quickKeyStatus");
-
-    const text =
-      $("quickAnswerKey")
-        ?.value || "";
-
-    const parsed =
-      parseQuickAnswerKey(text);
-
-    if (
-      parsed.length === 0
-    ) {
-      statusBox(
-        status,
-        "Could not find any valid answers.",
-        "error"
-      );
-
-      return;
-    }
-
-    let applied = 0;
-
-    document
-      .querySelectorAll(
-        ".answer-key-select"
-      )
-      .forEach(
-        (select, index) => {
-          const answer =
-            parsed[index];
-
-          if (
-            answer &&
-            getOptionLabels(
-              currentOptions[index]
-            ).includes(answer)
-          ) {
-            select.value =
-              answer;
-
-            currentAnswerKey[index] =
-              answer;
-
-            applied++;
-          }
-        }
-      );
-
-    statusBox(
-      status,
-      `Applied ${applied} answer(s).`,
-      "success"
-    );
-  }
-);
-
-$("clearQuickKeyBtn")?.addEventListener(
-  "click",
-  () => {
-    if ($("quickAnswerKey")) {
-      $("quickAnswerKey").value = "";
-    }
-
-    clearStatus(
-      $("quickKeyStatus")
-    );
-  }
-);
-
-
-/* =========================================================
-   CREATE TEST
-   ========================================================= */
-
-$("generateBtn")?.addEventListener(
-  "click",
-  async () => {
-    const name =
-      $("testName")
-        ?.value
-        ?.trim();
-
-    const pdfFile =
-      $("pdfFile")
-        ?.files?.[0];
-
-    const count =
-      Number(
-        $("questionCount")
+      const name =
+        $("testName")
           ?.value
-      );
+          ?.trim();
 
-    if (!name) {
-      alert(
-        "Please enter a test name."
-      );
+      const file =
+        $("pdfFile")
+          ?.files?.[0];
 
-      return;
-    }
+      const count =
+        Number(
+          $("questionCount")
+            ?.value
+        );
 
-    if (!pdfFile) {
-      alert(
-        "Please select the question paper PDF."
-      );
+      if (!name) {
 
-      return;
-    }
+        alert(
+          "Please enter a test name."
+        );
 
-    if (
-      !Number.isInteger(count) ||
-      count < 1 ||
-      count > 300
-    ) {
-      alert(
-        "Question count must be between 1 and 300."
-      );
+        return;
+      }
 
-      return;
-    }
+      if (!file) {
 
-    currentQuestionCount =
-      count;
+        alert(
+          "Please select the question paper PDF."
+        );
 
-    currentOptions =
-      collectQuestionOptions();
+        return;
+      }
 
-    if (
-      currentOptions.length !==
-      count
-    ) {
-      renderOptionSettings();
+      if (
+        !Number.isInteger(
+          count
+        ) ||
+        count < 1 ||
+        count > 300
+      ) {
+
+        alert(
+          "Question count must be between 1 and 300."
+        );
+
+        return;
+      }
+
+      currentQuestionCount =
+        count;
 
       currentOptions =
-        collectQuestionOptions();
-    }
-
-    setLoading(
-      true,
-      "Preparing your test..."
-    );
-
-    try {
-      const code =
-        await generateUniqueTestCode();
+        getQuestionOptions();
 
       setLoading(
         true,
-        "Uploading question paper..."
+        "Preparing your test..."
       );
 
-      currentPdfUrl =
-        await uploadQuestionPaper(
-          pdfFile,
-          code
+      try {
+
+        const code =
+          await uniqueCode();
+
+        setLoading(
+          true,
+          "Uploading question paper..."
         );
 
-      currentTest = {
-        name,
-        code,
-        pdf_url:
-          currentPdfUrl,
-        question_count:
-          currentQuestionCount,
-        options:
-          currentOptions,
-        duration_minutes:
-          Number(
-            $("durationMinutes")
-              ?.value
-          ) || 0
-      };
+        const pdfUrl =
+          await uploadPdf(
+            file,
+            code
+          );
 
-      renderAnswerKey();
+        currentTest = {
 
-      showScreen(
-        "answerKeyScreen"
-      );
+          name,
 
-    } catch (error) {
-      console.error(error);
+          code,
 
-      alert(
-        "Could not prepare the test.\n\n" +
-        error.message
-      );
+          pdf_url:
+            pdfUrl,
 
-    } finally {
-      setLoading(false);
+          question_count:
+            count,
+
+          options:
+            currentOptions
+
+        };
+
+        renderAnswerKey();
+
+        showScreen(
+          "answerKeyScreen"
+        );
+
+      } catch (error) {
+
+        console.error(
+          error
+        );
+
+        alert(
+          "Could not prepare the test.\n\n" +
+          error.message
+        );
+
+      } finally {
+
+        setLoading(
+          false
+        );
+
+      }
+
     }
-  }
-);
+  );
 
 
 /* =========================================================
    SAVE TEST
    ========================================================= */
 
-$("saveTestBtn")?.addEventListener(
-  "click",
-  async () => {
-    if (!currentTest) {
-      alert(
-        "No test is ready to save."
-      );
+$("saveTestBtn")
+  ?.addEventListener(
+    "click",
+    async () => {
 
-      return;
-    }
+      if (!currentTest) {
 
-    const answerKey =
-      collectAnswerKey();
+        alert(
+          "No test is ready to save."
+        );
 
-    if (
-      answerKey.length !==
-      currentQuestionCount ||
-      answerKey.some(
-        (answer) => !answer
-      )
-    ) {
-      statusBox(
-        $("saveStatus"),
-        "Please select the correct answer for every question.",
-        "error"
-      );
-
-      return;
-    }
-
-    const correctMark =
-      Number(
-        $("correctMark")
-          ?.value
-      );
-
-    const wrongMark =
-      Number(
-        $("wrongMark")
-          ?.value
-      );
-
-    if (
-      !Number.isFinite(
-        correctMark
-      ) ||
-      !Number.isFinite(
-        wrongMark
-      )
-    ) {
-      statusBox(
-        $("saveStatus"),
-        "Please enter valid marks.",
-        "error"
-      );
-
-      return;
-    }
-
-    setLoading(
-      true,
-      "Saving test..."
-    );
-
-    try {
-      const {
-        data,
-        error
-      } = await supabaseClient
-        .from("tests")
-        .insert({
-          name:
-            currentTest.name,
-
-          pdf_url:
-            currentTest.pdf_url,
-
-          question_count:
-            currentTest.question_count,
-
-          options:
-            currentTest.options,
-
-          answer_key:
-            answerKey,
-
-          correct_mark:
-            correctMark,
-
-          wrong_mark:
-            wrongMark,
-
-          code:
-            currentTest.code,
-
-          duration_minutes:
-            currentTest.duration_minutes
-        })
-        .select()
-        .single();
-
-      if (error) {
-        throw error;
+        return;
       }
 
-      currentTest =
-        data;
+      const answerKey =
+        getAnswerKey();
 
-      if ($("createdCode")) {
-        $("createdCode")
-          .textContent =
-          data.code;
+      if (
+        answerKey.length !==
+          currentQuestionCount ||
+        answerKey.some(
+          answer =>
+            !answer
+        )
+      ) {
+
+        alert(
+          "Please select the correct answer for every question."
+        );
+
+        return;
       }
 
-      showScreen(
-        "createdScreen"
+      const correctMark =
+        Number(
+          $("correctMark")
+            ?.value
+        );
+
+      const wrongMark =
+        Number(
+          $("wrongMark")
+            ?.value
+        );
+
+      setLoading(
+        true,
+        "Saving test..."
       );
 
-    } catch (error) {
-      console.error(error);
+      try {
 
-      statusBox(
-        $("saveStatus"),
-        error.message ||
-          "Could not save test.",
-        "error"
-      );
+        const {
+          data,
+          error
+        } =
+          await supabaseClient
+            .from("tests")
+            .insert({
 
-    } finally {
-      setLoading(false);
+              name:
+                currentTest.name,
+
+              pdf_url:
+                currentTest.pdf_url,
+
+              question_count:
+                currentTest.question_count,
+
+              options:
+                currentTest.options,
+
+              answer_key:
+                answerKey,
+
+              correct_mark:
+                correctMark,
+
+              wrong_mark:
+                wrongMark,
+
+              code:
+                currentTest.code,
+
+              duration_minutes:
+                Number(
+                  $("durationMinutes")
+                    ?.value
+                ) || 0
+
+            })
+            .select()
+            .single();
+
+        if (error) {
+          throw error;
+        }
+
+        currentTest =
+          data;
+
+        if ($("createdCode")) {
+
+          $("createdCode")
+            .textContent =
+            data.code;
+
+        }
+
+        showScreen(
+          "createdScreen"
+        );
+
+      } catch (error) {
+
+        console.error(
+          error
+        );
+
+        statusBox(
+          $("saveStatus"),
+          error.message ||
+            "Could not save test.",
+          "error"
+        );
+
+      } finally {
+
+        setLoading(
+          false
+        );
+
+      }
+
     }
-  }
-);
+  );
 
 
 /* =========================================================
@@ -933,28 +1008,34 @@ $("saveTestBtn")?.addEventListener(
 async function loadTestByCode(
   code
 ) {
+
   const cleanCode =
-    String(code || "")
+    String(
+      code || ""
+    )
       .trim()
       .toUpperCase();
 
   if (!cleanCode) {
+
     throw new Error(
       "Please enter a test code."
     );
+
   }
 
   const {
     data,
     error
-  } = await supabaseClient
-    .from("tests")
-    .select("*")
-    .eq(
-      "code",
-      cleanCode
-    )
-    .limit(1);
+  } =
+    await supabaseClient
+      .from("tests")
+      .select("*")
+      .eq(
+        "code",
+        cleanCode
+      )
+      .limit(1);
 
   if (error) {
     throw error;
@@ -964,12 +1045,15 @@ async function loadTestByCode(
     !data ||
     data.length === 0
   ) {
+
     throw new Error(
       "Test not found. Please check the code."
     );
+
   }
 
   return data[0];
+
 }
 
 
@@ -977,117 +1061,581 @@ async function loadTestByCode(
    JOIN TEST
    ========================================================= */
 
-$("joinBtn")?.addEventListener(
-  "click",
-  async () => {
-    const code =
-      $("joinCode")
-        ?.value
-        ?.trim()
-        .toUpperCase();
+$("joinBtn")
+  ?.addEventListener(
+    "click",
+    async () => {
 
-    const status =
-      $("joinStatus");
+      const code =
+        $("joinCode")
+          ?.value
+          ?.trim()
+          .toUpperCase();
 
-    clearStatus(status);
+      const status =
+        $("joinStatus");
 
-    if (!code) {
-      statusBox(
-        status,
-        "Please enter the test code.",
-        "error"
+      clearStatus(
+        status
       );
 
-      return;
-    }
+      if (!code) {
 
-    setLoading(
-      true,
-      "Loading examination..."
-    );
-
-    try {
-      currentTest =
-        await loadTestByCode(
-          code
+        statusBox(
+          status,
+          "Please enter the test code.",
+          "error"
         );
 
-      currentQuestionCount =
-        Number(
-          currentTest.question_count
-        ) || 0;
+        return;
+      }
 
-      currentOptions =
-        Array.isArray(
-          currentTest.options
-        )
-          ? currentTest.options
-          : new Array(
+      setLoading(
+        true,
+        "Loading examination..."
+      );
+
+      try {
+
+        currentTest =
+          await loadTestByCode(
+            code
+          );
+
+        currentQuestionCount =
+          Number(
+            currentTest.question_count
+          ) || 0;
+
+        currentOptions =
+          Array.isArray(
+            currentTest.options
+          )
+            ? currentTest.options
+            : new Array(
+                currentQuestionCount
+              ).fill(4);
+
+        currentAnswerKey =
+          Array.isArray(
+            currentTest.answer_key
+          )
+            ? currentTest.answer_key
+            : [];
+
+        selectedAnswers =
+          new Array(
+            currentQuestionCount
+          ).fill("");
+
+        examSubmitted =
+          false;
+
+        if ($("examName")) {
+
+          $("examName")
+            .textContent =
+            currentTest.name;
+
+        }
+
+        if ($("examInfo")) {
+
+          $("examInfo")
+            .textContent =
+            `${currentQuestionCount} Questions • Code: ${currentTest.code}`;
+
+        }
+
+        if ($("candidateName")) {
+
+          $("candidateName")
+            .value =
+            "";
+
+        }
+
+        showScreen(
+          "examScreen"
+        );
+
+
+        /* =================================================
+           DETECT TEST TYPE
+           ================================================= */
+
+        const isTypedTest =
+          currentTest.creation_type ===
+            "typed" ||
+          Boolean(
+            currentTest.question_data
+          );
+
+
+        if (isTypedTest) {
+
+          currentTypedQuestions =
+            parseTypedQuestionData(
+              currentTest
+            );
+
+          currentQuestionCount =
+            currentTypedQuestions.length;
+
+          currentOptions =
+            currentTypedQuestions.map(
+              question =>
+                Number(
+                  question?.option_count
+                ) === 2
+                  ? 2
+                  : 4
+            );
+
+          if (
+            Array.isArray(
+              currentTest.answer_key
+            ) &&
+            currentTest.answer_key.length
+          ) {
+
+            currentAnswerKey =
+              currentTest.answer_key
+                .map(
+                  answer =>
+                    String(
+                      answer || ""
+                    )
+                      .trim()
+                      .toUpperCase()
+                );
+
+          } else {
+
+            currentAnswerKey =
+              currentTypedQuestions.map(
+                question =>
+                  String(
+                    question?.answer ||
+                    ""
+                  )
+                    .trim()
+                    .toUpperCase()
+              );
+
+          }
+
+          selectedAnswers =
+            new Array(
               currentQuestionCount
-            ).fill(4);
+            ).fill("");
 
-      currentAnswerKey =
-        Array.isArray(
-          currentTest.answer_key
-        )
-          ? currentTest.answer_key
-          : [];
+          renderTypedExam();
 
-      selectedAnswers =
-        new Array(
-          currentQuestionCount
-        ).fill("");
+          setTypedExamPdfVisibility(
+            true
+          );
 
-      examSubmitted = false;
+        } else {
 
-      if ($("examName")) {
-        $("examName")
-          .textContent =
-          currentTest.name;
+          currentTypedQuestions =
+            [];
+
+          setTypedExamPdfVisibility(
+            false
+          );
+
+          renderExam();
+
+          await initializePdfViewer(
+            currentTest.pdf_url
+          );
+
+        }
+
+
+        startExamTimer(
+          Number(
+            currentTest.duration_minutes
+          ) || 0
+        );
+
+
+      } catch (error) {
+
+        console.error(
+          error
+        );
+
+        statusBox(
+          status,
+          error.message ||
+            "Could not load test.",
+          "error"
+        );
+
+      } finally {
+
+        setLoading(
+          false
+        );
+
       }
 
-      if ($("examInfo")) {
-        $("examInfo")
-          .textContent =
-          `${currentQuestionCount} Questions • Code: ${currentTest.code}`;
-      }
-
-      if ($("candidateName")) {
-        $("candidateName")
-          .value = "";
-      }
-
-      showScreen(
-        "examScreen"
-      );
-
-      renderExam();
-
-      await initializePdfViewer(
-        currentTest.pdf_url
-      );
-
-      startExamTimer(
-        Number(
-          currentTest.duration_minutes
-        ) || 0
-      );
-
-    } catch (error) {
-      console.error(error);
-
-      statusBox(
-        status,
-        error.message ||
-          "Could not load test.",
-        "error"
-      );
-
-    } finally {
-      setLoading(false);
     }
+  );
+
+
+/* =========================================================
+   TYPED QUESTION DATA
+   ========================================================= */
+
+function parseTypedQuestionData(
+  test
+) {
+
+  let data =
+    test?.question_data;
+
+  if (!data) {
+
+    throw new Error(
+      "This typed test does not contain question data."
+    );
+
   }
-);
+
+  if (
+    typeof data ===
+    "string"
+  ) {
+
+    try {
+
+      data =
+        JSON.parse(
+          data
+        );
+
+    } catch {
+
+      throw new Error(
+        "The typed question data is invalid."
+      );
+
+    }
+
+  }
+
+  const questions =
+    Array.isArray(
+      data?.questions
+    )
+      ? data.questions
+      : [];
+
+  if (
+    !questions.length
+  ) {
+
+    throw new Error(
+      "No questions were found in this typed test."
+    );
+
+  }
+
+  return questions;
+
+}
+
+
+/* =========================================================
+   TYPED/PDF VIEWER VISIBILITY
+   ========================================================= */
+
+function setTypedExamPdfVisibility(
+  isTyped
+) {
+
+  const pdfCard =
+    document.querySelector(
+      ".pdf-card"
+    );
+
+  const workspace =
+    document.querySelector(
+      ".exam-workspace"
+    );
+
+  const navigator =
+    $("questionNavigator");
+
+  const pageNavigation =
+    $("examPageNavigation");
+
+  if (isTyped) {
+
+    hide(
+      pdfCard
+    );
+
+    hide(
+      navigator
+    );
+
+    hide(
+      pageNavigation
+    );
+
+    workspace
+      ?.classList
+      .add(
+        "typed-exam-mode"
+      );
+
+    if (
+      currentPdfDocument
+    ) {
+
+      try {
+        currentPdfDocument.destroy();
+      } catch {}
+
+    }
+
+    currentPdfDocument =
+      null;
+
+    currentPdfUrl =
+      "";
+
+    pdfPageCanvases =
+      [];
+
+  } else {
+
+    show(
+      pdfCard
+    );
+
+    show(
+      navigator
+    );
+
+    show(
+      pageNavigation
+    );
+
+    workspace
+      ?.classList
+      .remove(
+        "typed-exam-mode"
+      );
+
+  }
+
+}
+
+
+/* =========================================================
+   TYPED EXAM RENDERER
+   ========================================================= */
+
+function renderTypedExam() {
+
+  const grid =
+    $("examGrid");
+
+  if (!grid) {
+    return;
+  }
+
+  grid.innerHTML =
+    "";
+
+  currentTypedQuestions
+    .forEach(
+      (
+        question,
+        index
+      ) => {
+
+        const row =
+          document.createElement(
+            "div"
+          );
+
+        row.className =
+          "exam-question typed-exam-question";
+
+
+        const number =
+          document.createElement(
+            "div"
+          );
+
+        number.className =
+          "question-number";
+
+        number.textContent =
+          String(
+            index + 1
+          );
+
+        row.appendChild(
+          number
+        );
+
+
+        const text =
+          document.createElement(
+            "div"
+          );
+
+        text.className =
+          "typed-question-text";
+
+        text.textContent =
+          String(
+            question?.question ||
+            ""
+          );
+
+        row.appendChild(
+          text
+        );
+
+
+        const options =
+          document.createElement(
+            "div"
+          );
+
+        options.className =
+          "typed-exam-options";
+
+
+        const labels =
+          getOptionLabels(
+            Number(
+              question?.option_count
+            ) === 2
+              ? 2
+              : 4
+          );
+
+
+        labels.forEach(
+          option => {
+
+            const label =
+              document.createElement(
+                "label"
+              );
+
+            label.className =
+              "answer-option";
+
+
+            const input =
+              document.createElement(
+                "input"
+              );
+
+            input.type =
+              "radio";
+
+            input.name =
+              `question-${index}`;
+
+            input.value =
+              option;
+
+
+            const badge =
+              document.createElement(
+                "span"
+              );
+
+            badge.className =
+              "typed-option-label";
+
+            badge.textContent =
+              option;
+
+
+            const optionText =
+              document.createElement(
+                "span"
+              );
+
+            optionText.className =
+              "typed-option-text";
+
+            optionText.textContent =
+              String(
+                question
+                  ?.options
+                  ?.[
+                    option
+                  ] ||
+                ""
+              );
+
+
+            input.addEventListener(
+              "change",
+              () => {
+
+                selectedAnswers[
+                  index
+                ] =
+                  option;
+
+                updateOptionVisual(
+                  index
+                );
+
+                updateExamProgress();
+
+              }
+            );
+
+
+            label.appendChild(
+              input
+            );
+
+            label.appendChild(
+              badge
+            );
+
+            label.appendChild(
+              optionText
+            );
+
+            options.appendChild(
+              label
+            );
+
+          }
+        );
+
+
+        row.appendChild(
+          options
+        );
+
+        grid.appendChild(
+          row
+        );
+
+      }
+    );
+
+  updateExamProgress();
+
+}
 
 
 /* =========================================================
@@ -1095,47 +1643,65 @@ $("joinBtn")?.addEventListener(
    ========================================================= */
 
 function renderExam() {
+
   const grid =
     $("examGrid");
 
-  if (!grid) return;
+  if (!grid) {
+    return;
+  }
 
-  grid.innerHTML = "";
+  grid.innerHTML =
+    "";
 
   selectedAnswers =
     new Array(
       currentQuestionCount
     ).fill("");
 
+  currentExamPage =
+    0;
+
   for (
     let i = 0;
     i < currentQuestionCount;
     i++
   ) {
+
     const row =
-      document.createElement("div");
+      document.createElement(
+        "div"
+      );
 
     row.className =
       "exam-question";
 
     const number =
-      document.createElement("div");
+      document.createElement(
+        "div"
+      );
 
     number.className =
       "question-number";
 
     number.textContent =
-      String(i + 1);
+      String(
+        i + 1
+      );
 
-    row.appendChild(number);
+    row.appendChild(
+      number
+    );
 
     const labels =
       getOptionLabels(
-        currentOptions[i] || 4
+        currentOptions[i] ||
+        4
       );
 
     labels.forEach(
-      (option) => {
+      option => {
+
         const label =
           document.createElement(
             "label"
@@ -1169,7 +1735,10 @@ function renderExam() {
         input.addEventListener(
           "change",
           () => {
-            selectedAnswers[i] =
+
+            selectedAnswers[
+              i
+            ] =
               option;
 
             updateOptionVisual(
@@ -1177,47 +1746,416 @@ function renderExam() {
             );
 
             updateExamProgress();
+
+            updateQuestionNavigatorState();
+
           }
         );
 
-        label.appendChild(input);
-        label.appendChild(text);
+        label.appendChild(
+          input
+        );
 
-        row.appendChild(label);
+        label.appendChild(
+          text
+        );
+
+        row.appendChild(
+          label
+        );
+
       }
     );
 
-    grid.appendChild(row);
+    grid.appendChild(
+      row
+    );
+
   }
 
+  renderQuestionNavigator();
+  showExamPage(
+    0
+  );
   updateExamProgress();
+
 }
+
+
+/* =========================================================
+   PDF EXAM QUESTION NAVIGATION
+   ========================================================= */
+
+function getExamPageCount() {
+
+  return Math.max(
+    1,
+    Math.ceil(
+      currentQuestionCount /
+      QUESTIONS_PER_PAGE
+    )
+  );
+
+}
+
+
+function getExamPageStart(
+  pageIndex
+) {
+
+  return (
+    pageIndex *
+    QUESTIONS_PER_PAGE
+  );
+
+}
+
+
+function getExamPageEnd(
+  pageIndex
+) {
+
+  return Math.min(
+    currentQuestionCount,
+    getExamPageStart(pageIndex) +
+    QUESTIONS_PER_PAGE
+  );
+
+}
+
+
+function renderQuestionNavigator() {
+
+  const navigator =
+    $("questionNavigator");
+
+  const navGrid =
+    $("questionNavGrid");
+
+  const total =
+    $("questionNavTotal");
+
+  const current =
+    $("questionNavCurrent");
+
+  const prev =
+    $("examPagePrevBtn");
+
+  const next =
+    $("examPageNextBtn");
+
+  const indicator =
+    $("examPageIndicator");
+
+  if (!navigator || !navGrid) {
+    return;
+  }
+
+  const pageCount =
+    getExamPageCount();
+
+  navGrid.innerHTML =
+    "";
+
+  for (
+    let page = 0;
+    page < pageCount;
+    page++
+  ) {
+
+    const start =
+      getExamPageStart(page) + 1;
+
+    const end =
+      getExamPageEnd(page);
+
+    const button =
+      document.createElement(
+        "button"
+      );
+
+    button.type =
+      "button";
+
+    button.className =
+      "question-nav-item";
+
+    button.dataset.page =
+      String(page);
+
+    button.textContent =
+      `${start}–${end}`;
+
+    button.title =
+      `Questions ${start} to ${end}`;
+
+    button.setAttribute(
+      "aria-label",
+      `Questions ${start} to ${end}`
+    );
+
+    button.addEventListener(
+      "click",
+      () => {
+        showExamPage(
+          page
+        );
+      }
+    );
+
+    navGrid.appendChild(
+      button
+    );
+
+  }
+
+  if (total) {
+    total.textContent =
+      `${currentQuestionCount} Questions`;
+  }
+
+  updateQuestionNavigatorState();
+
+  if (prev) {
+    prev.addEventListener(
+      "click",
+      () => {
+        showExamPage(
+          currentExamPage - 1
+        );
+      }
+    );
+  }
+
+  if (next) {
+    next.addEventListener(
+      "click",
+      () => {
+        showExamPage(
+          currentExamPage + 1
+        );
+      }
+    );
+  }
+
+  updateExamPageControls();
+
+}
+
+
+function updateQuestionNavigatorState() {
+
+  const navGrid =
+    $("questionNavGrid");
+
+  if (!navGrid) {
+    return;
+  }
+
+  [
+    ...navGrid.querySelectorAll(
+      ".question-nav-item"
+    )
+  ].forEach(
+    (button, page) => {
+
+      const start =
+        getExamPageStart(page);
+
+      const end =
+        getExamPageEnd(page);
+
+      const answered =
+        selectedAnswers
+          .slice(
+            start,
+            end
+          )
+          .some(
+            Boolean
+          );
+
+      button.classList.toggle(
+        "current",
+        page === currentExamPage
+      );
+
+      button.classList.toggle(
+        "answered",
+        answered
+      );
+
+      button.classList.toggle(
+        "unanswered",
+        !answered
+      );
+
+      button.setAttribute(
+        "aria-current",
+        page === currentExamPage
+          ? "true"
+          : "false"
+      );
+
+    }
+  );
+
+}
+
+
+function updateExamPageControls() {
+
+  const pageCount =
+    getExamPageCount();
+
+  const start =
+    currentQuestionCount > 0
+      ? getExamPageStart(
+          currentExamPage
+        ) + 1
+      : 0;
+
+  const end =
+    getExamPageEnd(
+      currentExamPage
+    );
+
+  const current =
+    $("questionNavCurrent");
+
+  const indicator =
+    $("examPageIndicator");
+
+  const prev =
+    $("examPagePrevBtn");
+
+  const next =
+    $("examPageNextBtn");
+
+  if (current) {
+    current.textContent =
+      `${start}–${end}`;
+  }
+
+  if (indicator) {
+    indicator.textContent =
+      `${start}–${end}`;
+  }
+
+  if (prev) {
+    prev.disabled =
+      currentExamPage <= 0;
+  }
+
+  if (next) {
+    next.disabled =
+      currentExamPage >=
+      pageCount - 1;
+  }
+
+}
+
+
+function showExamPage(
+  pageIndex
+) {
+
+  const pageCount =
+    getExamPageCount();
+
+  currentExamPage =
+    Math.max(
+      0,
+      Math.min(
+        pageCount - 1,
+        Number(pageIndex) || 0
+      )
+    );
+
+  const grid =
+    $("examGrid");
+
+  if (grid) {
+
+    [
+      ...grid.children
+    ].forEach(
+      (row, index) => {
+
+        const page =
+          Math.floor(
+            index /
+            QUESTIONS_PER_PAGE
+          );
+
+        row.hidden =
+          page !==
+          currentExamPage;
+
+      }
+    );
+
+  }
+
+  updateQuestionNavigatorState();
+  updateExamPageControls();
+
+  const active =
+    $("questionNavGrid")
+      ?.querySelector(
+        `.question-nav-item[data-page="${currentExamPage}"]`
+      );
+
+  active?.scrollIntoView({
+    behavior: "smooth",
+    block: "nearest",
+    inline: "center"
+  });
+
+}
+
+
+/* =========================================================
+   OPTION VISUAL
+   ========================================================= */
 
 function updateOptionVisual(
   questionIndex
 ) {
+
   document
     .querySelectorAll(
       `input[name="question-${questionIndex}"]`
     )
     .forEach(
-      (input) => {
+      input => {
+
         const label =
           input.closest(
             ".answer-option"
           );
 
-        if (!label) return;
+        if (!label) {
+          return;
+        }
 
         label.classList.toggle(
           "selected",
           input.checked
         );
+
       }
     );
+
 }
 
+
+/* =========================================================
+   EXAM PROGRESS
+   ========================================================= */
+
 function updateExamProgress() {
+
   const answered =
     selectedAnswers.filter(
       Boolean
@@ -1226,10 +2164,14 @@ function updateExamProgress() {
   const total =
     currentQuestionCount;
 
-  if ($("questionProgress")) {
+  if (
+    $("questionProgress")
+  ) {
+
     $("questionProgress")
       .textContent =
       `${answered} / ${total}`;
+
   }
 
   const percentage =
@@ -1237,7 +2179,8 @@ function updateExamProgress() {
       ? (
           answered /
           total
-        ) * 100
+        ) *
+        100
       : 0;
 
   const fill =
@@ -1246,9 +2189,12 @@ function updateExamProgress() {
     );
 
   if (fill) {
+
     fill.style.width =
       `${percentage}%`;
+
   }
+
 }
 
 
@@ -1256,48 +2202,58 @@ function updateExamProgress() {
    RESET ANSWERS
    ========================================================= */
 
-$("resetExamBtn")?.addEventListener(
-  "click",
-  () => {
-    if (
-      !confirm(
-        "Delete all selected answers?"
-      )
-    ) {
-      return;
+$("resetExamBtn")
+  ?.addEventListener(
+    "click",
+    () => {
+
+      if (
+        !confirm(
+          "Delete all selected answers?"
+        )
+      ) {
+
+        return;
+
+      }
+
+      selectedAnswers =
+        new Array(
+          currentQuestionCount
+        ).fill("");
+
+      document
+        .querySelectorAll(
+          ".answer-option input"
+        )
+        .forEach(
+          input => {
+
+            input.checked =
+              false;
+
+          }
+        );
+
+      document
+        .querySelectorAll(
+          ".answer-option.selected"
+        )
+        .forEach(
+          label => {
+
+            label.classList.remove(
+              "selected"
+            );
+
+          }
+        );
+
+      updateExamProgress();
+      updateQuestionNavigatorState();
+
     }
-
-    selectedAnswers =
-      new Array(
-        currentQuestionCount
-      ).fill("");
-
-    document
-      .querySelectorAll(
-        ".answer-option input"
-      )
-      .forEach(
-        (input) => {
-          input.checked =
-            false;
-        }
-      );
-
-    document
-      .querySelectorAll(
-        ".answer-option.selected"
-      )
-      .forEach(
-        (label) => {
-          label.classList.remove(
-            "selected"
-          );
-        }
-      );
-
-    updateExamProgress();
-  }
-);
+  );
 
 
 /* =========================================================
@@ -1305,42 +2261,58 @@ $("resetExamBtn")?.addEventListener(
    ========================================================= */
 
 function calculateResult() {
+
   const correctMark =
     Number(
-      currentTest.correct_mark
+      currentTest
+        ?.correct_mark
     ) || 0;
 
   const wrongMark =
     Number(
-      currentTest.wrong_mark
+      currentTest
+        ?.wrong_mark
     ) || 0;
 
   let correct = 0;
+
   let wrong = 0;
+
   let unanswered = 0;
+
 
   for (
     let i = 0;
     i < currentQuestionCount;
     i++
   ) {
+
     const selected =
       selectedAnswers[i];
 
     if (!selected) {
+
       unanswered++;
+
       continue;
+
     }
 
     if (
       selected ===
       currentAnswerKey[i]
     ) {
+
       correct++;
+
     } else {
+
       wrong++;
+
     }
+
   }
+
 
   const score =
     (
@@ -1354,37 +2326,71 @@ function calculateResult() {
       )
     );
 
+
   const totalMarks =
     currentQuestionCount *
     correctMark;
+
 
   const percentage =
     totalMarks > 0
       ? (
           score /
           totalMarks
-        ) * 100
+        ) *
+        100
       : 0;
 
+
   return {
-  candidateName:
-    $("candidateName")
-      ?.value
-      ?.trim() || "",
 
-  testCode:
-    currentTest.code,
+    testId:
+      currentTest?.id ||
+      null,
 
-  testName:
-    currentTest.name,
+    testCode:
+      currentTest?.code ||
+      "",
 
-  correct,
-  wrong,
-  unanswered,
-  score,
-  totalMarks,
-  percentage
-};
+    testName:
+      currentTest?.name ||
+      "",
+
+    candidateName:
+      $("candidateName")
+        ?.value
+        ?.trim() ||
+      "",
+
+    correct,
+
+    wrong,
+
+    unanswered,
+
+    score,
+
+    totalMarks,
+
+    percentage,
+
+    answers:
+      [
+        ...selectedAnswers
+      ],
+
+    answerKey:
+      [
+        ...currentAnswerKey
+      ],
+
+    options:
+      [
+        ...currentOptions
+      ]
+
+  };
+
 }
 
 
@@ -1392,110 +2398,201 @@ function calculateResult() {
    SAVE RESULT
    ========================================================= */
 
-async function saveExamResult(result) {
-  if (!result) {
-    throw new Error("Result data is missing.");
-  }
-
-  /*
-    IMPORTANT:
-    The current exam_results table does NOT have
-    an "answers" column.
-
-    So we only save the columns that exist:
-      test_code
-      test_name
-      candidate_name
-      correct
-      wrong
-      unanswered
-      score
-      total_marks
-      percentage
-  */
-
-  const payload = {
-    test_code:
-      result.testCode || "",
-
-    test_name:
-      result.testName ||
-      currentTest?.name ||
-      "Online Examination",
-
-    candidate_name:
-      result.candidateName ||
-      "Candidate",
-
-    correct:
-      Number(result.correct) || 0,
-
-    wrong:
-      Number(result.wrong) || 0,
-
-    unanswered:
-      Number(result.unanswered) || 0,
-
-    score:
-      Number(result.score) || 0,
-
-    total_marks:
-      Number(result.totalMarks) || 0,
-
-    percentage:
-      Number(result.percentage) || 0
-  };
-
-  console.log(
-    "Saving exam result:",
-    payload
-  );
+async function saveExamResult(
+  result
+) {
 
   const {
     error
-  } = await supabaseClient
-    .from("exam_results")
-    .insert(payload);
+  } =
+    await supabaseClient
+      .from(
+        "exam_results"
+      )
+      .insert({
+
+        test_code:
+          result.testCode,
+
+        test_name:
+          result.testName,
+
+        candidate_name:
+          result.candidateName,
+
+        correct:
+          result.correct,
+
+        wrong:
+          result.wrong,
+
+        unanswered:
+          result.unanswered,
+
+        score:
+          result.score,
+
+        total_marks:
+          result.totalMarks,
+
+        percentage:
+          result.percentage
+
+      });
 
   if (error) {
-    console.error(
-      "Exam result save error:",
-      error
-    );
-
     throw error;
   }
 
-  console.log(
-    "Exam result saved successfully."
-  );
-
-  return true;
 }
 
+
 /* =========================================================
-   SHOW RESULT AFTER SUBMIT
+   SUBMIT EXAM
+   ========================================================= */
+
+$("submitExamBtn")
+  ?.addEventListener(
+    "click",
+    async () => {
+
+      if (!currentTest) {
+        return;
+      }
+
+      if (examSubmitted) {
+        return;
+      }
+
+
+      const name =
+        $("candidateName")
+          ?.value
+          ?.trim();
+
+
+      if (!name) {
+
+        alert(
+          "Please enter your name before submitting."
+        );
+
+        $("candidateName")
+          ?.focus();
+
+        return;
+
+      }
+
+
+      const unanswered =
+        selectedAnswers.filter(
+          answer =>
+            !answer
+        ).length;
+
+
+      if (
+        unanswered > 0
+      ) {
+
+        const confirmSubmit =
+          confirm(
+            `${unanswered} question(s) are unanswered.\n\nSubmit anyway?`
+          );
+
+        if (!confirmSubmit) {
+          return;
+        }
+
+      }
+
+
+      setLoading(
+        true,
+        "Submitting examination..."
+      );
+
+
+      try {
+
+        const result =
+          calculateResult();
+
+
+        await saveExamResult(
+          result
+        );
+
+
+        examSubmitted =
+          true;
+
+
+        stopExamTimer();
+
+
+        renderSubmittedResult(
+          result
+        );
+
+
+        alert(
+          "Exam submitted successfully."
+        );
+
+
+      } catch (error) {
+
+        console.error(
+          error
+        );
+
+        alert(
+          "Could not submit the exam.\n\n" +
+          error.message
+        );
+
+      } finally {
+
+        setLoading(
+          false
+        );
+
+      }
+
+    }
+  );
+
+
+/* =========================================================
+   RESULT
    ========================================================= */
 
 function renderSubmittedResult(
   result
 ) {
+
   const box =
     $("resultBox");
 
-  if (!box) return;
+  if (!box) {
+    return;
+  }
 
   box.innerHTML = `
     <div class="result-title">
-      Result
+      Exam Completed ✓
     </div>
 
     <p>
-      <strong>
-        ${escapeHtml(
-          result.candidateName
-        )}
-      </strong>
+      ${escapeHtml(
+        result.candidateName
+      )}
+      •
+      ${escapeHtml(
+        result.testName
+      )}
     </p>
 
     <div class="result-stats">
@@ -1545,496 +2642,415 @@ function renderSubmittedResult(
     </div>
   `;
 
-  show(box);
+  show(
+    box
+  );
 
   box.scrollIntoView({
-    behavior: "smooth",
-    block: "nearest"
+    behavior:
+      "smooth",
+
+    block:
+      "nearest"
   });
+
 }
 
-
-/* =========================================================
-   SUBMIT EXAM
-   ========================================================= */
-
-$("submitExamBtn")?.addEventListener(
-  "click",
-  async () => {
-    if (!currentTest) {
-      return;
-    }
-
-    if (examSubmitted) {
-      return;
-    }
-
-    const name =
-      $("candidateName")
-        ?.value
-        ?.trim();
-
-    if (!name) {
-      alert(
-        "Please enter your name before submitting."
-      );
-
-      $("candidateName")
-        ?.focus();
-
-      return;
-    }
-
-    const unanswered =
-      selectedAnswers.filter(
-        (answer) => !answer
-      ).length;
-
-    if (unanswered > 0) {
-      const confirmSubmit =
-        confirm(
-          `${unanswered} question(s) are unanswered.\n\nSubmit anyway?`
-        );
-
-      if (!confirmSubmit) {
-        return;
-      }
-    }
-
-    setLoading(
-      true,
-      "Submitting examination..."
-    );
-
-    try {
-      const result =
-        calculateResult();
-
-      await saveExamResult(
-        result
-      );
-
-      examSubmitted = true;
-
-      stopExamTimer();
-
-      renderSubmittedResult(
-        result
-      );
-
-      alert(
-        "Exam submitted successfully."
-      );
-
-    } catch (error) {
-      console.error(error);
-
-      alert(
-        "Could not submit the exam.\n\n" +
-        error.message
-      );
-
-    } finally {
-      setLoading(false);
-    }
-  }
-);
 
 /* =========================================================
    RESULT CHECK — ALL STUDENTS
    ========================================================= */
 
-$("checkResultBtn")?.addEventListener(
-  "click",
-  async () => {
-    const code =
-      $("resultCode")
-        ?.value
-        ?.trim()
-        .toUpperCase();
+$("checkResultBtn")
+  ?.addEventListener(
+    "click",
+    async () => {
 
-    const status =
-      $("resultStatus");
+      const code =
+        $("resultCode")
+          ?.value
+          ?.trim()
+          .toUpperCase();
 
-    const box =
-      $("singleResultBox");
+      const status =
+        $("resultStatus");
 
-    clearStatus(status);
-    hide(box);
+      const box =
+        $("singleResultBox");
 
-    if (!code) {
-      statusBox(
-        status,
-        "Please enter the test code.",
-        "error"
+      clearStatus(
+        status
       );
 
-      return;
-    }
+      hide(
+        box
+      );
 
-    setLoading(
-      true,
-      "Loading all student results..."
-    );
+      if (!code) {
 
-    try {
-      /* -----------------------------------------
-         FETCH ALL RESULTS FOR THIS TEST
-         ----------------------------------------- */
-
-      const {
-        data,
-        error
-      } = await supabaseClient
-        .from("exam_results")
-        .select("*")
-        .eq(
-          "test_code",
-          code
-        )
-        .order(
-          "score",
-          {
-            ascending: false
-          }
+        statusBox(
+          status,
+          "Please enter the test code.",
+          "error"
         );
 
-      if (error) {
-        throw error;
+        return;
       }
+
+      setLoading(
+        true,
+        "Loading result..."
+      );
+
+      try {
+
+        const {
+          data,
+          error
+        } =
+          await supabaseClient
+            .from(
+              "exam_results"
+            )
+            .select("*")
+            .eq(
+              "test_code",
+              code
+            );
+
+        if (error) {
+          throw error;
+        }
+
+        if (
+          !data ||
+          data.length === 0
+        ) {
+          throw new Error(
+            "No submitted result found for this test code."
+          );
+        }
+
+        const results =
+          [...data].sort(
+            (a, b) => {
+
+              const scoreA =
+                Number(
+                  a.score
+                ) || 0;
+
+              const scoreB =
+                Number(
+                  b.score
+                ) || 0;
+
+              if (
+                scoreB !== scoreA
+              ) {
+                return (
+                  scoreB -
+                  scoreA
+                );
+              }
+
+              return (
+                Number(
+                  b.percentage
+                ) || 0
+              ) -
+              (
+                Number(
+                  a.percentage
+                ) || 0
+              );
+
+            }
+          );
+
+        if (!box) {
+  return;
+}
+
+const testName =
+  results[0]?.test_name ||
+  "Examination";
+
+const totalStudents =
+  results.length;
+
+const rows =
+  results
+    .map((result, index) => {
+      const percentage =
+        Number(result.percentage) || 0;
+
+      return `
+        <tr>
+          <td>
+            ${index + 1}
+          </td>
+
+          <td>
+            <strong>
+              ${escapeHtml(
+                result.candidate_name ||
+                "Candidate"
+              )}
+            </strong>
+          </td>
+
+          <td>
+            ${result.correct ?? 0}
+          </td>
+
+          <td>
+            ${result.wrong ?? 0}
+          </td>
+
+          <td>
+            ${result.unanswered ?? 0}
+          </td>
+
+          <td>
+            ${Number(
+              result.score
+            ).toFixed(2)}
+            /
+            ${Number(
+              result.total_marks
+            ).toFixed(2)}
+          </td>
+
+          <td>
+            ${percentage.toFixed(2)}%
+          </td>
+        </tr>
+      `;
+    })
+    .join("");
+
+box.innerHTML = `
+  <div class="result-title">
+    Results Found ✓
+  </div>
+
+  <p>
+    ${escapeHtml(testName)}
+    •
+    ${totalStudents}
+    Student${totalStudents === 1 ? "" : "s"}
+  </p>
+
+  <div style="
+    overflow-x:auto;
+    width:100%;
+    margin-top:18px;
+  ">
+    <table style="
+      width:100%;
+      min-width:720px;
+      border-collapse:collapse;
+      text-align:left;
+    ">
+      <thead>
+        <tr>
+          <th style="padding:12px;">Rank</th>
+          <th style="padding:12px;">Student</th>
+          <th style="padding:12px;">Correct</th>
+          <th style="padding:12px;">Wrong</th>
+          <th style="padding:12px;">Skipped</th>
+          <th style="padding:12px;">Score</th>
+          <th style="padding:12px;">Percentage</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        ${rows}
+      </tbody>
+    </table>
+  </div>
+`;
+
+show(box);
+
+box.scrollIntoView({
+  behavior:
+    "smooth",
+  block:
+    "nearest"
+});
+
+      } catch (error) {
+
+        console.error(
+          error
+        );
+
+        statusBox(
+          status,
+          error.message ||
+            "Could not load the result.",
+          "error"
+        );
+
+      } finally {
+
+        setLoading(
+          false
+        );
+
+      }
+
+    }
+  );
+
+
+/* =========================================================
+   COPY TEST CODE
+   ========================================================= */
+
+$("copyCodeBtn")
+  ?.addEventListener(
+    "click",
+    async () => {
+
+      const code =
+        $("createdCode")
+          ?.textContent
+          ?.trim();
+
+      if (!code) {
+        return;
+      }
+
+      try {
+
+        await navigator
+          .clipboard
+          .writeText(
+            code
+          );
+
+        const button =
+          $("copyCodeBtn");
+
+        if (!button) {
+          return;
+        }
+
+        const old =
+          button.textContent;
+
+        button.textContent =
+          "Copied ✓";
+
+        setTimeout(
+          () => {
+
+            button.textContent =
+              old;
+
+          },
+          1500
+        );
+
+      } catch {
+
+        alert(
+          `Test Code: ${code}`
+        );
+
+      }
+
+    }
+  );
+
+
+/* =========================================================
+   EXIT EXAM
+   ========================================================= */
+
+$("exitExamBtn")
+  ?.addEventListener(
+    "click",
+    async () => {
+
+      const answered =
+        selectedAnswers.filter(
+          Boolean
+        ).length;
+
 
       if (
-        !data ||
-        data.length === 0
+        !examSubmitted &&
+        answered &&
+        !confirm(
+          "You have selected some answers.\n\nExit the exam?"
+        )
       ) {
-        throw new Error(
-          "No submitted result found for this test code."
-        );
+
+        return;
+
       }
 
-      /* -----------------------------------------
-         SORT RESULTS
-         Highest score first.
-         If scores are equal, percentage decides.
-         ----------------------------------------- */
 
-      const results =
-        [...data].sort(
-          (a, b) => {
-            const scoreA =
-              Number(a.score) || 0;
+      stopExamTimer();
 
-            const scoreB =
-              Number(b.score) || 0;
 
-            if (
-              scoreB !== scoreA
-            ) {
-              return scoreB - scoreA;
-            }
+      if (
+        currentPdfDocument
+      ) {
 
-            const percentageA =
-              Number(a.percentage) || 0;
+        try {
 
-            const percentageB =
-              Number(b.percentage) || 0;
+          await currentPdfDocument
+            .destroy();
 
-            return (
-              percentageB -
-              percentageA
-            );
-          }
-        );
+        } catch {}
 
-      /* -----------------------------------------
-         BUILD RESULT TABLE
-         ----------------------------------------- */
-
-      let tableRows = "";
-
-      results.forEach(
-        (result, index) => {
-          const rank =
-            index + 1;
-
-          const candidate =
-            escapeHtml(
-              result.candidate_name ||
-              "Candidate"
-            );
-
-          const correct =
-            Number(
-              result.correct
-            ) || 0;
-
-          const wrong =
-            Number(
-              result.wrong
-            ) || 0;
-
-          const unanswered =
-            Number(
-              result.unanswered
-            ) || 0;
-
-          const score =
-            Number(
-              result.score
-            ) || 0;
-
-          const totalMarks =
-            Number(
-              result.total_marks
-            ) || 0;
-
-          const percentage =
-            Number(
-              result.percentage
-            ) || 0;
-
-          tableRows += `
-            <tr>
-              <td
-                style="
-                  text-align:center;
-                  font-weight:700;
-                  white-space:nowrap;
-                "
-              >
-                ${rank}
-              </td>
-
-              <td
-                style="
-                  font-weight:600;
-                  min-width:160px;
-                "
-              >
-                ${candidate}
-              </td>
-
-              <td
-                style="
-                  text-align:center;
-                  color:#15803d;
-                  font-weight:700;
-                "
-              >
-                ${correct}
-              </td>
-
-              <td
-                style="
-                  text-align:center;
-                  color:#dc2626;
-                  font-weight:700;
-                "
-              >
-                ${wrong}
-              </td>
-
-              <td
-                style="
-                  text-align:center;
-                  color:#64748b;
-                  font-weight:700;
-                "
-              >
-                ${unanswered}
-              </td>
-
-              <td
-                style="
-                  text-align:center;
-                  font-weight:800;
-                  white-space:nowrap;
-                "
-              >
-                ${score} / ${totalMarks}
-              </td>
-
-              <td
-                style="
-                  text-align:center;
-                  font-weight:800;
-                  color:#0f766e;
-                  white-space:nowrap;
-                "
-              >
-                ${percentage.toFixed(2)}%
-              </td>
-            </tr>
-          `;
-        }
-      );
-
-      /* -----------------------------------------
-         TEST NAME
-         ----------------------------------------- */
-
-      const testName =
-        escapeHtml(
-          results[0]?.test_name ||
-          "Online Examination"
-        );
-
-      /* -----------------------------------------
-         FINAL RESULT UI
-         ----------------------------------------- */
-
-      if (box) {
-        box.innerHTML = `
-          <div class="result-title">
-            Result Found
-          </div>
-
-          <p>
-            <strong>
-              ${testName}
-            </strong>
-          </p>
-
-          <p>
-            <strong>
-              Test Code:
-            </strong>
-            ${escapeHtml(code)}
-          </p>
-
-          <p
-            style="
-              margin-top:8px;
-              margin-bottom:18px;
-              color:#64748b;
-            "
-          >
-            ${results.length}
-            student(s) submitted this examination.
-          </p>
-
-          <div
-            style="
-              width:100%;
-              overflow-x:auto;
-              border:1px solid #dbe5e7;
-              border-radius:14px;
-              background:#ffffff;
-            "
-          >
-            <table
-              style="
-                width:100%;
-                min-width:760px;
-                border-collapse:collapse;
-                font-size:14px;
-              "
-            >
-              <thead>
-                <tr
-                  style="
-                    background:#f0fdfa;
-                    border-bottom:2px solid #d5eeee;
-                  "
-                >
-                  <th
-                    style="
-                      padding:13px 10px;
-                      text-align:center;
-                    "
-                  >
-                    Rank
-                  </th>
-
-                  <th
-                    style="
-                      padding:13px 10px;
-                      text-align:left;
-                    "
-                  >
-                    Student
-                  </th>
-
-                  <th
-                    style="
-                      padding:13px 10px;
-                      text-align:center;
-                    "
-                  >
-                    Correct
-                  </th>
-
-                  <th
-                    style="
-                      padding:13px 10px;
-                      text-align:center;
-                    "
-                  >
-                    Wrong
-                  </th>
-
-                  <th
-                    style="
-                      padding:13px 10px;
-                      text-align:center;
-                    "
-                  >
-                    Unanswered
-                  </th>
-
-                  <th
-                    style="
-                      padding:13px 10px;
-                      text-align:center;
-                    "
-                  >
-                    Score
-                  </th>
-
-                  <th
-                    style="
-                      padding:13px 10px;
-                      text-align:center;
-                    "
-                  >
-                    Percentage
-                  </th>
-                </tr>
-              </thead>
-
-              <tbody>
-                ${tableRows}
-              </tbody>
-            </table>
-          </div>
-        `;
-
-        show(box);
-
-        box.scrollIntoView({
-          behavior: "smooth",
-          block: "nearest"
-        });
       }
 
-    } catch (error) {
-      console.error(
-        "Result check error:",
-        error
+
+      currentPdfDocument =
+        null;
+
+      currentPdfUrl =
+        "";
+
+      currentTypedQuestions =
+        [];
+
+      currentExamPage =
+        0;
+
+      selectedAnswers =
+        [];
+
+      currentAnswerKey =
+        [];
+
+      currentOptions =
+        [];
+
+      currentTest =
+        null;
+
+      examSubmitted =
+        false;
+
+
+      setTypedExamPdfVisibility(
+        false
       );
 
-      statusBox(
-        status,
-        error.message ||
-          "Could not check results.",
-        "error"
+
+      showScreen(
+        "homeScreen"
       );
 
-    } finally {
-      setLoading(false);
     }
-  }
-);
+  );
 
 
 /* =========================================================
@@ -2044,6 +3060,7 @@ $("checkResultBtn")?.addEventListener(
 async function initializePdfViewer(
   url
 ) {
+
   const mount =
     $("pdfViewerMount");
 
@@ -2060,6 +3077,7 @@ async function initializePdfViewer(
           type="button"
           id="pdfPrevBtn"
           class="small-btn secondary-btn"
+          aria-label="Previous PDF page"
         >
           ‹
         </button>
@@ -2072,6 +3090,7 @@ async function initializePdfViewer(
           type="button"
           id="pdfNextBtn"
           class="small-btn secondary-btn"
+          aria-label="Next PDF page"
         >
           ›
         </button>
@@ -2080,6 +3099,7 @@ async function initializePdfViewer(
           type="button"
           id="pdfZoomOutBtn"
           class="small-btn secondary-btn"
+          aria-label="Zoom out"
         >
           −
         </button>
@@ -2092,6 +3112,7 @@ async function initializePdfViewer(
           type="button"
           id="pdfZoomInBtn"
           class="small-btn secondary-btn"
+          aria-label="Zoom in"
         >
           +
         </button>
@@ -2100,16 +3121,12 @@ async function initializePdfViewer(
 
       <div
         id="pdfCanvasContainer"
-        style="
-          width:100%;
-          overflow:auto;
-          -webkit-overflow-scrolling:touch;
-          text-align:center;
-        "
+        class="pdf-canvas-container"
       >
-        <canvas
-          id="pdfCanvas"
-        ></canvas>
+        <div
+          id="pdfPages"
+          class="pdf-pages"
+        ></div>
       </div>
 
     </div>
@@ -2127,6 +3144,7 @@ async function initializePdfViewer(
   }
 
   try {
+
     const pdfjs =
       await loadPdfJs();
 
@@ -2139,15 +3157,21 @@ async function initializePdfViewer(
         })
         .promise;
 
-    currentPdfPage = 1;
+    currentPdfPage =
+      1;
 
-    currentPdfScale = 1;
+    currentPdfScale =
+      1;
+
+    pdfPageCanvases =
+      [];
 
     bindPdfControls();
 
-    await renderPdfPage();
+    await renderPdfDocument();
 
   } catch (error) {
+
     console.error(
       "PDF viewer error:",
       error
@@ -2159,120 +3183,207 @@ async function initializePdfViewer(
         Use the Open PDF button below.
       </div>
     `;
+
   }
+
 }
 
+
 function bindPdfControls() {
-  $("pdfPrevBtn")?.addEventListener(
-    "click",
-    async () => {
-      if (
-        currentPdfPage <= 1
-      ) {
+
+  $("pdfPrevBtn")
+    ?.addEventListener(
+      "click",
+      () => {
+
+        if (
+          !currentPdfDocument ||
+          currentPdfPage <= 1
+        ) {
+          return;
+        }
+
+        currentPdfPage--;
+
+        scrollToPdfPage(
+          currentPdfPage
+        );
+
+      }
+    );
+
+
+  $("pdfNextBtn")
+    ?.addEventListener(
+      "click",
+      () => {
+
+        if (
+          !currentPdfDocument ||
+          currentPdfPage >=
+            currentPdfDocument.numPages
+        ) {
+          return;
+        }
+
+        currentPdfPage++;
+
+        scrollToPdfPage(
+          currentPdfPage
+        );
+
+      }
+    );
+
+
+  $("pdfZoomOutBtn")
+    ?.addEventListener(
+      "click",
+      async () => {
+
+        currentPdfScale =
+          Math.max(
+            0.5,
+            currentPdfScale -
+              0.1
+          );
+
+        updatePdfZoom();
+
+        await renderPdfDocument();
+
+      }
+    );
+
+
+  $("pdfZoomInBtn")
+    ?.addEventListener(
+      "click",
+      async () => {
+
+        currentPdfScale =
+          Math.min(
+            3,
+            currentPdfScale +
+              0.1
+          );
+
+        updatePdfZoom();
+
+        await renderPdfDocument();
+
+      }
+    );
+
+  const container =
+    $("pdfCanvasContainer");
+
+  container?.addEventListener(
+    "scroll",
+    () => {
+      const wrappers =
+        [
+          ...container.querySelectorAll(
+            ".pdf-page-wrapper"
+          )
+        ];
+
+      if (!wrappers.length) {
         return;
       }
 
-      currentPdfPage--;
+      const containerTop =
+        container.getBoundingClientRect().top;
 
-      await renderPdfPage();
-    }
-  );
+      let closestPage = 1;
+      let closestDistance = Infinity;
 
-  $("pdfNextBtn")?.addEventListener(
-    "click",
-    async () => {
-      if (
-        !currentPdfDocument ||
-        currentPdfPage >=
-          currentPdfDocument.numPages
-      ) {
-        return;
-      }
+      wrappers.forEach(
+        wrapper => {
+          const distance =
+            Math.abs(
+              wrapper.getBoundingClientRect().top -
+              containerTop
+            );
 
-      currentPdfPage++;
+          if (distance < closestDistance) {
+            closestDistance = distance;
+            closestPage =
+              Number(
+                wrapper.dataset.page
+              ) || 1;
+          }
+        }
+      );
 
-      await renderPdfPage();
-    }
-  );
+      currentPdfPage =
+        closestPage;
 
-  $("pdfZoomOutBtn")?.addEventListener(
-    "click",
-    async () => {
-      currentPdfScale =
-        Math.max(
-          0.5,
-          currentPdfScale - 0.1
-        );
-
-      updatePdfZoom();
-
-      await renderPdfPage();
-    }
-  );
-
-  $("pdfZoomInBtn")?.addEventListener(
-    "click",
-    async () => {
-      currentPdfScale =
-        Math.min(
-          3,
-          currentPdfScale + 0.1
-        );
-
-      updatePdfZoom();
-
-      await renderPdfPage();
-    }
+      updatePdfPageInfo();
+    },
+    { passive: true }
   );
 
   updatePdfZoom();
+
 }
 
+
 function updatePdfZoom() {
+
   const value =
     $("pdfZoomValue");
 
   if (value) {
     value.textContent =
       `${Math.round(
-        currentPdfScale * 100
+        currentPdfScale *
+        100
       )}%`;
   }
+
 }
 
-async function renderPdfPage() {
+
+async function renderPdfDocument() {
+
   if (!currentPdfDocument) {
     return;
   }
 
-  const canvas =
-    $("pdfCanvas");
-
   const container =
     $("pdfCanvasContainer");
 
-  if (
-    !canvas ||
-    !container
-  ) {
+  const pages =
+    $("pdfPages");
+
+  if (!container || !pages) {
     return;
   }
 
-  const page =
+  const targetPage =
+    currentPdfPage;
+
+  pages.innerHTML =
+    "";
+
+  pdfPageCanvases =
+    [];
+
+  const firstPage =
     await currentPdfDocument
-      .getPage(
-        currentPdfPage
-      );
+      .getPage(1);
 
   const baseViewport =
-    page.getViewport({
+    firstPage.getViewport({
       scale: 1
     });
 
   const availableWidth =
     Math.max(
       280,
-      container.clientWidth - 20
+      container.clientWidth -
+        36
     );
 
   const fitScale =
@@ -2283,55 +3394,192 @@ async function renderPdfPage() {
     fitScale *
     currentPdfScale;
 
-  const viewport =
-    page.getViewport({
-      scale
-    });
+  for (
+    let pageNumber = 1;
+    pageNumber <=
+      currentPdfDocument.numPages;
+    pageNumber++
+  ) {
 
-  const dpr =
-    window.devicePixelRatio || 1;
+    const page =
+      pageNumber === 1
+        ? firstPage
+        : await currentPdfDocument
+            .getPage(
+              pageNumber
+            );
 
-  canvas.width =
-    Math.floor(
-      viewport.width * dpr
+    const viewport =
+      page.getViewport({
+        scale
+      });
+
+    const wrapper =
+      document.createElement(
+        "div"
+      );
+
+    wrapper.className =
+      "pdf-page-wrapper";
+
+    wrapper.dataset.page =
+      String(
+        pageNumber
+      );
+
+    const canvas =
+      document.createElement(
+        "canvas"
+      );
+
+    canvas.className =
+      "pdf-page-canvas";
+
+    const dpr =
+      window.devicePixelRatio ||
+      1;
+
+    canvas.width =
+      Math.floor(
+        viewport.width *
+        dpr
+      );
+
+    canvas.height =
+      Math.floor(
+        viewport.height *
+        dpr
+      );
+
+    canvas.style.width =
+      `${viewport.width}px`;
+
+    canvas.style.height =
+      `${viewport.height}px`;
+
+    const context =
+      canvas.getContext(
+        "2d"
+      );
+
+    context.setTransform(
+      dpr,
+      0,
+      0,
+      dpr,
+      0,
+      0
     );
 
-  canvas.height =
-    Math.floor(
-      viewport.height * dpr
+    await page.render({
+      canvasContext:
+        context,
+      viewport
+    }).promise;
+
+    wrapper.appendChild(
+      canvas
     );
 
-  canvas.style.width =
-    `${viewport.width}px`;
+    pages.appendChild(
+      wrapper
+    );
 
-  canvas.style.height =
-    `${viewport.height}px`;
+    pdfPageCanvases.push(
+      canvas
+    );
 
-  const context =
-    canvas.getContext("2d");
+  }
 
-  context.setTransform(
-    dpr,
-    0,
-    0,
-    dpr,
-    0,
-    0
+  currentPdfPage =
+    Math.max(
+      1,
+      Math.min(
+        targetPage,
+        currentPdfDocument.numPages
+      )
+    );
+
+  updatePdfPageInfo();
+
+  scrollToPdfPage(
+    currentPdfPage,
+    false
   );
 
-  await page.render({
-    canvasContext:
-      context,
-    viewport
-  }).promise;
+}
+
+
+function updatePdfPageInfo() {
 
   const pageInfo =
     $("pdfPageInfo");
 
   if (pageInfo) {
     pageInfo.textContent =
-      `${currentPdfPage} / ${currentPdfDocument.numPages}`;
+      `${currentPdfPage} / ${currentPdfDocument?.numPages || 0}`;
   }
+
+  const previous =
+    $("pdfPrevBtn");
+
+  const next =
+    $("pdfNextBtn");
+
+  if (previous) {
+    previous.disabled =
+      currentPdfPage <= 1;
+  }
+
+  if (next) {
+    next.disabled =
+      !currentPdfDocument ||
+      currentPdfPage >=
+        currentPdfDocument.numPages;
+  }
+
+}
+
+
+function scrollToPdfPage(
+  pageNumber,
+  smooth = true
+) {
+
+  const container =
+    $("pdfCanvasContainer");
+
+  const wrapper =
+    document.querySelector(
+      `.pdf-page-wrapper[data-page="${pageNumber}"]`
+    );
+
+  if (!container || !wrapper) {
+    return;
+  }
+
+  currentPdfPage =
+    Math.max(
+      1,
+      Math.min(
+        Number(pageNumber),
+        currentPdfDocument?.numPages || 1
+      )
+    );
+
+  wrapper.scrollIntoView({
+    behavior:
+      smooth
+        ? "smooth"
+        : "auto",
+    block:
+      "start",
+    inline:
+      "nearest"
+  });
+
+  updatePdfPageInfo();
+
 }
 
 
@@ -2342,7 +3590,9 @@ async function renderPdfPage() {
 function startExamTimer(
   minutes
 ) {
+
   stopExamTimer();
+
 
   const timer =
     $("examTimer");
@@ -2350,76 +3600,126 @@ function startExamTimer(
   const value =
     $("examTimerValue");
 
+
   if (
     !minutes ||
     minutes <= 0
   ) {
-    hide(timer);
+
+    hide(
+      timer
+    );
+
     return;
+
   }
 
-  remainingSeconds =
-    minutes * 60;
 
-  show(timer);
+  remainingSeconds =
+    minutes *
+    60;
+
+
+  show(
+    timer
+  );
+
 
   updateTimerDisplay();
+
 
   timerInterval =
     setInterval(
       () => {
+
         remainingSeconds--;
 
         updateTimerDisplay();
 
+
         if (
-          remainingSeconds <= 0
+          remainingSeconds <=
+          0
         ) {
+
           stopExamTimer();
+
 
           if (
             !examSubmitted
           ) {
+
             alert(
               "Time is over. Your exam will be submitted."
             );
 
             $("submitExamBtn")
               ?.click();
+
           }
+
         }
+
       },
       1000
     );
+
 }
 
+
 function stopExamTimer() {
-  if (timerInterval) {
+
+  if (
+    timerInterval
+  ) {
+
     clearInterval(
       timerInterval
     );
 
     timerInterval =
       null;
+
   }
+
 }
 
+
 function updateTimerDisplay() {
+
   const value =
     $("examTimerValue");
 
-  if (!value) return;
+  if (!value) {
+    return;
+  }
+
 
   const minutes =
     Math.floor(
-      remainingSeconds / 60
+      remainingSeconds /
+      60
     );
 
+
   const seconds =
-    remainingSeconds % 60;
+    remainingSeconds %
+    60;
+
 
   value.textContent =
-    `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+    `${String(
+      minutes
+    ).padStart(
+      2,
+      "0"
+    )}:${String(
+      seconds
+    ).padStart(
+      2,
+      "0"
+    )}`;
+
 }
 
 
@@ -2427,375 +3727,307 @@ function updateTimerDisplay() {
    NAVIGATION
    ========================================================= */
 
-$("showCreateBtn")?.addEventListener(
-  "click",
-  () => {
-    showScreen(
-      "createScreen"
-    );
+$("showCreateBtn")
+  ?.addEventListener(
+    "click",
+    () => {
 
-    renderOptionSettings();
-  }
-);
-
-$("showJoinBtn")?.addEventListener(
-  "click",
-  () => {
-    showScreen(
-      "joinScreen"
-    );
-
-    $("joinCode")
-      ?.focus();
-  }
-);
-
-$("showResultBtn")?.addEventListener(
-  "click",
-  () => {
-    showScreen(
-      "resultScreen"
-    );
-
-    $("resultCode")
-      ?.focus();
-  }
-);
-
-$("backHomeFromCreate")?.addEventListener(
-  "click",
-  () => {
-    showScreen(
-      "homeScreen"
-    );
-  }
-);
-
-$("backHomeFromJoin")?.addEventListener(
-  "click",
-  () => {
-    showScreen(
-      "homeScreen"
-    );
-  }
-);
-
-$("backHomeFromResult")?.addEventListener(
-  "click",
-  () => {
-    showScreen(
-      "homeScreen"
-    );
-  }
-);
-
-$("backToCreateBtn")?.addEventListener(
-  "click",
-  () => {
-    showScreen(
-      "createScreen"
-    );
-  }
-);
-
-$("goHomeAfterCreate")?.addEventListener(
-  "click",
-  () => {
-    showScreen(
-      "homeScreen"
-    );
-  }
-);
-
-
-/* =========================================================
-   COPY CODE
-   ========================================================= */
-
-$("copyCodeBtn")?.addEventListener(
-  "click",
-  async () => {
-    const code =
-      $("createdCode")
-        ?.textContent
-        ?.trim();
-
-    if (!code) {
-      return;
-    }
-
-    try {
-      await navigator.clipboard
-        .writeText(code);
-
-      const button =
-        $("copyCodeBtn");
-
-      const old =
-        button.textContent;
-
-      button.textContent =
-        "Copied ✓";
-
-      setTimeout(
-        () => {
-          button.textContent =
-            old;
-        },
-        1500
+      showScreen(
+        "createScreen"
       );
 
-    } catch {
-      alert(
-        `Test Code: ${code}`
+      renderOptionSettings();
+
+    }
+  );
+
+
+$("showJoinBtn")
+  ?.addEventListener(
+    "click",
+    () => {
+
+      showScreen(
+        "joinScreen"
       );
+
+      $("joinCode")
+        ?.focus();
+
     }
-  }
-);
+  );
+
+
+$("showResultBtn")
+  ?.addEventListener(
+    "click",
+    () => {
+
+      showScreen(
+        "resultScreen"
+      );
+
+      $("resultCode")
+        ?.focus();
+
+    }
+  );
+
+
+$("backHomeFromResult")
+  ?.addEventListener(
+    "click",
+    () =>
+      showScreen(
+        "homeScreen"
+      )
+  );
+
+
+$("backHomeFromCreate")
+  ?.addEventListener(
+    "click",
+    () =>
+      showScreen(
+        "homeScreen"
+      )
+  );
+
+
+$("backHomeFromJoin")
+  ?.addEventListener(
+    "click",
+    () =>
+      showScreen(
+        "homeScreen"
+      )
+  );
+
+
+$("goHomeAfterCreate")
+  ?.addEventListener(
+    "click",
+    () =>
+      showScreen(
+        "homeScreen"
+      )
+  );
 
 
 /* =========================================================
-   CLEAR CREATE FORM
+   CREATE FORM
    ========================================================= */
 
-$("clearCreateBtn")?.addEventListener(
-  "click",
-  () => {
-    if ($("testName")) {
-      $("testName").value = "";
-    }
-
-    if ($("pdfFile")) {
-      $("pdfFile").value = "";
-    }
-
-    if ($("questionCount")) {
-      $("questionCount").value =
-        "40";
-    }
-
-    if ($("defaultOptions")) {
-      $("defaultOptions").value =
-        "4";
-    }
-
-    if ($("durationMinutes")) {
-      $("durationMinutes").value =
-        "60";
-    }
-
-    if ($("pdfStatus")) {
-      $("pdfStatus").textContent =
-        "";
-    }
-
-    hide(
-      $("pdfPreviewBox")
-    );
-
-    currentTest = null;
-    currentOptions = [];
-    currentAnswerKey = [];
-
-    renderOptionSettings();
-  }
-);
+$("questionCount")
+  ?.addEventListener(
+    "change",
+    renderOptionSettings
+  );
 
 
-/* =========================================================
-   CREATE FORM CHANGES
-   ========================================================= */
+$("defaultOptions")
+  ?.addEventListener(
+    "change",
+    () => {
 
-$("questionCount")?.addEventListener(
-  "change",
-  () => {
-    renderOptionSettings();
-  }
-);
-
-$("defaultOptions")?.addEventListener(
-  "change",
-  () => {
-    renderOptionSettings();
-  }
-);
+      const value =
+        Number(
+          $("defaultOptions")
+            ?.value
+        ) === 2
+          ? 2
+          : 4;
 
 
-/* =========================================================
-   JOIN CODE FORMAT
-   ========================================================= */
-
-$("joinCode")?.addEventListener(
-  "input",
-  (event) => {
-    event.target.value =
-      event.target.value
-        .toUpperCase()
-        .replace(
-          /[^A-Z0-9]/g,
-          ""
+      document
+        .querySelectorAll(
+          ".question-option-count"
         )
-        .slice(
-          0,
-          6
+        .forEach(
+          select => {
+
+            select.value =
+              String(
+                value
+              );
+
+          }
         );
-  }
-);
 
-$("resultCode")?.addEventListener(
-  "input",
-  (event) => {
-    event.target.value =
-      event.target.value
-        .toUpperCase()
-        .replace(
-          /[^A-Z0-9]/g,
-          ""
-        )
-        .slice(
-          0,
-          6
-        );
-  }
-);
-
-
-/* =========================================================
-   ENTER KEY
-   ========================================================= */
-
-$("joinCode")?.addEventListener(
-  "keydown",
-  (event) => {
-    if (
-      event.key ===
-      "Enter"
-    ) {
-      event.preventDefault();
-
-      $("joinBtn")
-        ?.click();
     }
-  }
-);
-
-$("resultCode")?.addEventListener(
-  "keydown",
-  (event) => {
-    if (
-      event.key ===
-      "Enter"
-    ) {
-      event.preventDefault();
-
-      $("checkResultBtn")
-        ?.click();
-    }
-  }
-);
+  );
 
 
-/* =========================================================
-   EXIT EXAM
-   ========================================================= */
+$("clearCreateBtn")
+  ?.addEventListener(
+    "click",
+    () => {
 
-$("exitExamBtn")?.addEventListener(
-  "click",
-  () => {
-    const answered =
-      selectedAnswers.filter(
-        Boolean
-      ).length;
+      if ($("testName")) {
 
-    if (
-      answered > 0 &&
-      !examSubmitted
-    ) {
-      const ok =
-        confirm(
-          "You have selected answers.\n\nExit the exam?"
-        );
+        $("testName")
+          .value =
+          "";
 
-      if (!ok) {
-        return;
       }
+
+
+      if ($("pdfFile")) {
+
+        $("pdfFile")
+          .value =
+          "";
+
+      }
+
+
+      if ($("questionCount")) {
+
+        $("questionCount")
+          .value =
+          "40";
+
+      }
+
+
+      if ($("defaultOptions")) {
+
+        $("defaultOptions")
+          .value =
+          "4";
+
+      }
+
+
+      if ($("pdfStatus")) {
+
+        $("pdfStatus")
+          .textContent =
+          "";
+
+      }
+
+
+      hide(
+        $("pdfPreviewBox")
+      );
+
+
+      currentTest =
+        null;
+
+      currentOptions =
+        [];
+
+      currentAnswerKey =
+        [];
+
+
+      renderOptionSettings();
+
     }
-
-    stopExamTimer();
-
-    currentPdfDocument =
-      null;
-
-    currentPdfUrl =
-      "";
-
-    selectedAnswers =
-      [];
-
-    examSubmitted =
-      false;
-
-    showScreen(
-      "homeScreen"
-    );
-  }
-);
+  );
 
 
 /* =========================================================
-   INITIALIZATION
+   JOIN CODE
    ========================================================= */
 
-function initializeApp() {
-  renderOptionSettings();
+$("joinCode")
+  ?.addEventListener(
+    "input",
+    event => {
 
-  showScreen(
-    "homeScreen"
-  );
-}
+      event.target.value =
+        event.target.value
+          .toUpperCase()
+          .replace(
+            /[^A-Z0-9]/g,
+            ""
+          )
+          .slice(
+            0,
+            6
+          );
 
-if (
-  document.readyState ===
-  "loading"
-) {
-  document.addEventListener(
-    "DOMContentLoaded",
-    initializeApp,
-    {
-      once: true
     }
   );
-} else {
-  initializeApp();
-}
+
+
+$("joinCode")
+  ?.addEventListener(
+    "keydown",
+    event => {
+
+      if (
+        event.key ===
+        "Enter"
+      ) {
+
+        event.preventDefault();
+
+        $("joinBtn")
+          ?.click();
+
+      }
+
+    }
+  );
 
 
 /* =========================================================
-   ERROR LOGGING
+   THEME
    ========================================================= */
 
-window.addEventListener(
-  "unhandledrejection",
-  (event) => {
-    console.error(
-      "Unhandled promise rejection:",
-      event.reason
-    );
-  }
-);
+$("examoraThemeToggle")
+  ?.addEventListener(
+    "click",
+    () => {
 
-window.addEventListener(
-  "error",
-  (event) => {
-    console.error(
-      "JavaScript error:",
-      event.error ||
-        event.message
-    );
-  }
-);
+      const root =
+        document.documentElement;
+
+      const dark =
+        root.getAttribute(
+          "data-theme"
+        ) === "dark";
+
+      if (dark) {
+        root.removeAttribute(
+          "data-theme"
+        );
+      } else {
+        root.setAttribute(
+          "data-theme",
+          "dark"
+        );
+      }
+
+    }
+  );
 
 
 /* =========================================================
-   END
+   INITIAL STATE
    ========================================================= */
+
+document
+  .querySelectorAll(
+    ".screen"
+  )
+  .forEach(
+    screen => {
+
+      if (
+        screen.id !==
+        "homeScreen"
+      ) {
+
+        screen.classList.add(
+          "hidden"
+        );
+
+      }
+
+    }
+  );
