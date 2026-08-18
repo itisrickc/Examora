@@ -305,6 +305,38 @@ function getOptionLabels(
 
 }
 
+/* =========================================================
+   ANSWER NORMALIZER
+   ========================================================= */
+
+function normalizeAnswerOption(
+  value
+) {
+
+  const answer =
+    String(value || "")
+      .trim()
+      .toUpperCase();
+
+  const bengaliMap = {
+    "ক": "A",
+    "খ": "B",
+    "গ": "C",
+    "ঘ": "D"
+  };
+
+  if (
+    bengaliMap[answer]
+  ) {
+    return bengaliMap[answer];
+  }
+
+  return OPTION_LABELS.includes(
+    answer
+  )
+    ? answer
+    : "";
+}
 
 /* =========================================================
    TEST CODE
@@ -1172,7 +1204,7 @@ $("joinBtn")
           );
 
 
-        if (isTypedTest) {
+                if (isTypedTest) {
 
           currentTypedQuestions =
             parseTypedQuestionData(
@@ -1192,37 +1224,64 @@ $("joinBtn")
                   : 4
             );
 
-          if (
+          /*
+           * TYPED TEST ANSWER KEY
+           *
+           * question_data.questions[].answer is the single
+           * source of truth for typed tests.
+           *
+           * Older typed tests may not have the answer stored
+           * inside question_data, so answer_key is kept only
+           * as a backward-compatible fallback.
+           */
+          const typedQuestionAnswerKey =
+            currentTypedQuestions.map(
+              question =>
+                normalizeAnswerOption(
+                  question?.answer
+                )
+            );
+
+          const storedAnswerKey =
             Array.isArray(
               currentTest.answer_key
-            ) &&
-            currentTest.answer_key.length
-          ) {
-
-            currentAnswerKey =
-              currentTest.answer_key
-                .map(
+            )
+              ? currentTest.answer_key.map(
                   answer =>
-                    String(
-                      answer || ""
+                    normalizeAnswerOption(
+                      answer
                     )
-                      .trim()
-                      .toUpperCase()
-                );
+                )
+              : [];
 
-          } else {
+          const hasCompleteTypedAnswerKey =
+            typedQuestionAnswerKey.length ===
+              currentQuestionCount &&
+            typedQuestionAnswerKey.every(
+              Boolean
+            );
 
+          const hasCompleteStoredAnswerKey =
+            storedAnswerKey.length ===
+              currentQuestionCount &&
+            storedAnswerKey.every(
+              Boolean
+            );
+
+          if (
+            hasCompleteTypedAnswerKey
+          ) {
             currentAnswerKey =
-              currentTypedQuestions.map(
-                question =>
-                  String(
-                    question?.answer ||
-                    ""
-                  )
-                    .trim()
-                    .toUpperCase()
-              );
-
+              typedQuestionAnswerKey;
+          } else if (
+            hasCompleteStoredAnswerKey
+          ) {
+            /* Backward compatibility for older typed tests. */
+            currentAnswerKey =
+              storedAnswerKey;
+          } else {
+            currentAnswerKey =
+              typedQuestionAnswerKey;
           }
 
           selectedAnswers =
@@ -1251,6 +1310,7 @@ $("joinBtn")
             currentTest.duration_minutes
           ) || 0
         );
+
           await initializePdfViewer(
             currentTest.pdf_url
           );
