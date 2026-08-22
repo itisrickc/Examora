@@ -759,7 +759,197 @@ function getAnswerKey() {
   );
 
 }
+function parseQuickAnswerKey(text, count) {
+  const raw = String(text || "").trim();
 
+  if (!raw) {
+    return [];
+  }
+
+  const normalized = raw
+    .toUpperCase()
+    .replace(/[,\n\r\t]+/g, " ")
+    .trim();
+
+  // Format 1:
+  // ABCDABCD...
+  // A B C D A B C D
+  const compact = normalized.replace(/[^ABCD]/g, "");
+
+  if (compact.length === count) {
+    return compact.split("");
+  }
+
+  // Format 2:
+  // 1-A 2-B 3-C 4-D
+  // 1. A 2. B 3. C 4. D
+  const answers = new Array(count).fill("");
+
+  const regex =
+    /(\d{1,4})\s*[\.\-:\)]?\s*[\(\[]?\s*([ABCD])\s*[\)\]]?/gi;
+
+  let match;
+
+  while ((match = regex.exec(normalized))) {
+    const number = Number(match[1]);
+    const answer = match[2].toUpperCase();
+
+    if (
+      number >= 1 &&
+      number <= count
+    ) {
+      answers[number - 1] = answer;
+    }
+  }
+
+  return answers;
+}
+
+
+$("applyQuickKeyBtn")
+  ?.addEventListener(
+    "click",
+    () => {
+      if (!currentQuestionCount) {
+        return;
+      }
+
+      const input =
+        $("quickAnswerKey");
+
+      const status =
+        $("quickKeyStatus");
+
+      const parsed =
+        parseQuickAnswerKey(
+          input?.value || "",
+          currentQuestionCount
+        );
+
+      if (
+        parsed.length !==
+        currentQuestionCount
+      ) {
+        if (status) {
+          status.textContent =
+            `Expected ${currentQuestionCount} answers, but the answer key could not be completely parsed.`;
+
+          status.classList.remove(
+            "hidden"
+          );
+        }
+
+        return;
+      }
+
+      const missing =
+        parsed.some(
+          answer => !answer
+        );
+
+      if (missing) {
+        if (status) {
+          status.textContent =
+            "Some answers are missing from the answer key.";
+
+          status.classList.remove(
+            "hidden"
+          );
+        }
+
+        return;
+      }
+
+      const invalid =
+        parsed.some(
+          (answer, index) => {
+            const optionCount =
+              Number(
+                currentOptions[index]
+              ) === 2
+                ? 2
+                : 4;
+
+            const allowed =
+              getOptionLabels(
+                optionCount
+              );
+
+            return !allowed.includes(
+              answer
+            );
+          }
+        );
+
+      if (invalid) {
+        if (status) {
+          status.textContent =
+            "An answer does not match the available options.";
+
+          status.classList.remove(
+            "hidden"
+          );
+        }
+
+        return;
+      }
+
+      document
+        .querySelectorAll(
+          ".answer-key-select"
+        )
+        .forEach(
+          (select, index) => {
+            select.value =
+              parsed[index];
+          }
+        );
+
+      if (status) {
+        status.textContent =
+          "✓ Answer key applied successfully.";
+
+        status.classList.remove(
+          "hidden"
+        );
+      }
+    }
+  );
+
+
+$("clearQuickKeyBtn")
+  ?.addEventListener(
+    "click",
+    () => {
+      const input =
+        $("quickAnswerKey");
+
+      const status =
+        $("quickKeyStatus");
+
+      if (input) {
+        input.value = "";
+      }
+
+      document
+        .querySelectorAll(
+          ".answer-key-select"
+        )
+        .forEach(
+          select => {
+            select.value = "";
+          }
+        );
+
+      if (status) {
+        status.textContent = "";
+
+        status.classList.add(
+          "hidden"
+        );
+      }
+    }
+  );
 
 /* =========================================================
    CREATE PDF TEST
